@@ -309,6 +309,7 @@ class NotificationService: UNNotificationServiceExtension {
                 content.title = "Stability Payment Received"
                 content.body = "\(amountSats) sats received"
             }
+            content.sound = .default
             let dbPath = dataDir.appendingPathComponent("stablechannels.db").path
             recordPaymentInDB(
                 dbPath: dbPath,
@@ -532,6 +533,7 @@ class NotificationService: UNNotificationServiceExtension {
 
             content.title = "Stability Payment Sent"
             content.body = String(format: "Sent %d sats ($%.2f) to maintain stable position", amountSats, dollarsAbs)
+            content.sound = .default
             UserDefaults(suiteName: Self.appGroup)?.set(false, forKey: "pending_push_payment")
         } catch {
             nseLog("Keysend failed: \(error)")
