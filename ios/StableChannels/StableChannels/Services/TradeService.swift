@@ -32,7 +32,8 @@ class TradeService {
             price: price,
             channelId: sc.channelId,
             userChannelId: sc.userChannelId,
-            counterparty: sc.counterparty
+            counterparty: sc.counterparty,
+            backingSats: sc.stableReceiverBTC.sats
         )
 
         return (paymentId: paymentId, newExpectedUSD: newExpectedUSD, btcAmount: btcAmount)
@@ -58,7 +59,8 @@ class TradeService {
             price: price,
             channelId: sc.channelId,
             userChannelId: sc.userChannelId,
-            counterparty: sc.counterparty
+            counterparty: sc.counterparty,
+            backingSats: sc.stableReceiverBTC.sats
         )
 
         return (paymentId: paymentId, newExpectedUSD: newExpectedUSD, btcAmount: btcAmount)
@@ -75,14 +77,21 @@ class TradeService {
         price: Double = 0,
         channelId: String,
         userChannelId: String,
-        counterparty: String
+        counterparty: String,
+        backingSats: UInt64 = 0
     ) throws -> String {
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "type": Constants.tradeMessageType,
             "channel_id": channelId,
             "user_channel_id": "\(userChannelId)",
-            "expected_usd": expectedUSD
+            "expected_usd": expectedUSD,
+            "quote_price": price > 0 ? price : NSNull(),
+            "backing_sats": backingSats > 0 ? backingSats : NSNull(),
+            "ts": Int64(Date().timeIntervalSince1970)
         ]
+
+        // Remove null values so the payload matches desktop shape
+        payload = payload.compactMapValues { $0 is NSNull ? nil : $0 }
 
         guard let payloadData = try? JSONSerialization.data(withJSONObject: payload),
               let payloadStr = String(data: payloadData, encoding: .utf8) else {
@@ -129,7 +138,9 @@ class TradeService {
         data: [UInt8],
         expectedCounterparty: String,
         verifySignature: ([UInt8], String, String) -> Bool
-    ) -> (type: String, expectedUSD: Double, userChannelId: String)? {
+    )
+        -> (type: String, expectedUSD: Double, userChannelId: String, channelId: String, backingSats: UInt64,
+            syncVersion: UInt64)? {
         guard let envelopeStr = String(bytes: data, encoding: .utf8),
               let envelopeData = envelopeStr.data(using: .utf8),
               let envelope = try? JSONSerialization.jsonObject(with: envelopeData) as? [String: Any],
@@ -152,8 +163,18 @@ class TradeService {
         }
 
         let userChannelId = payload["user_channel_id"] as? String ?? ""
+        let channelId = payload["channel_id"] as? String ?? ""
+        let backingSats = payload["backing_sats"] as? UInt64 ?? (payload["backing_sats"] as? NSNumber)?.uint64Value ?? 0
+        let syncVersion = payload["sync_version"] as? UInt64 ?? (payload["sync_version"] as? NSNumber)?.uint64Value ?? 0
 
-        return (type: msgType, expectedUSD: expectedUSD, userChannelId: userChannelId)
+        return (
+            type: msgType,
+            expectedUSD: expectedUSD,
+            userChannelId: userChannelId,
+            channelId: channelId,
+            backingSats: backingSats,
+            syncVersion: syncVersion
+        )
     }
 }
 

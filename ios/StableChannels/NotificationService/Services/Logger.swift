@@ -32,3 +32,8 @@ struct FileLogger: Logger {
         }
     }
 }
+
+/// Shared logger for NSE static methods (StableControlParser, etc.)
+enum NotificationServiceLogger {
+    static let shared = FileLogger(appGroup: Constants.appGroup)
+}

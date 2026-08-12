@@ -1302,6 +1302,16 @@ class AppState {
                    !pending.paymentId.isEmpty,
                    pending.paymentId == "\(pid)" {
                     databaseService?.stabilityRepo.clearPendingSend()
+                    // Restore backing sats from the optimistic send-time deduction.
+                    // The DB row was updated when the payment was sent; reload to restore state.
+                    let channelRecord = try? databaseService?.channelRepo
+                        .loadChannel(userChannelId: stableChannel.userChannelId)
+                    if let record = channelRecord {
+                        stableChannel.backingSats = record.backingSats
+                        stableChannel.nativeSats = record.nativeSats
+                        refreshBalances()
+                        updateStableBalances()
+                    }
                     AuditService.log("STABILITY_PAYMENT_SEND_MARKER_CLEARED", data: [
                         "payment_id": "\(pid)",
                         "reason": "payment_failed"
@@ -1865,9 +1875,37 @@ class AppState {
 
             guard parsed.type == Constants.syncMessageType else { continue }
 
+            // Validate channel_id matches our wallet
+            guard parsed.channelId.isEmpty || parsed.channelId.lowercased() == stableChannel.channelId.lowercased()
+            else {
+                AuditService.log("SYNC_V1_CHANNEL_MISMATCH", data: [
+                    "signed_channel_id": parsed.channelId,
+                    "wallet_channel_id": stableChannel.channelId,
+                    "payment_hash": paymentHash
+                ])
+                continue
+            }
+
+            // Log sync_version for replay-protection audit trail
+            if parsed.syncVersion > 0 {
+                AuditService.log("SYNC_V1_VERSION", data: [
+                    "sync_version": "\(parsed.syncVersion)",
+                    "backing_sats": "\(parsed.backingSats)",
+                    "payment_hash": paymentHash
+                ])
+            }
             let oldExpected = stableChannel.expectedUSD.amount
             let price = stableChannel.latestPrice
-            StabilityService.applyTrade(&stableChannel, newExpectedUSD: parsed.expectedUSD, price: price)
+            let outcome = StabilityService.applyTrade(&stableChannel, newExpectedUSD: parsed.expectedUSD, price: price)
+            if outcome != .applied {
+                AuditService.log("SYNC_V1_REJECTED", data: [
+                    "reason": String(describing: outcome),
+                    "old_expected_usd": "\(oldExpected)",
+                    "new_expected_usd": "\(parsed.expectedUSD)",
+                    "btc_price": "\(price)",
+                    "payment_hash": paymentHash
+                ])
+            }
             saveChannelToDB()
 
             AuditService.log("SYNC_V1_APPLIED", data: [
@@ -1893,11 +1931,20 @@ class AppState {
         // Check if this is a pending trade payment — apply trade now that payment confirmed
         if let pid = paymentId, let trade = pendingTradePayments.removeValue(forKey: "\(pid)") {
             // Apply the trade (deferred until confirmation — matches desktop)
-            StabilityService.applyTrade(
+            let tradeOutcome = StabilityService.applyTrade(
                 &stableChannel,
                 newExpectedUSD: trade.newExpectedUSD,
                 price: trade.price
             )
+            if tradeOutcome != .applied {
+                AuditService.log("TRADE_CONFIRMED_REJECTED", data: [
+                    "payment_hash": paymentHashStr,
+                    "action": trade.action,
+                    "new_expected_usd": "\(trade.newExpectedUSD)",
+                    "reason": String(describing: tradeOutcome),
+                    "fee_paid_msat": feePaidMsat.map { "\($0)" } ?? "nil"
+                ])
+            }
             saveChannelToDB()
 
             try? databaseService?.paymentRepo.updateTradeStatus(trade.tradeDbId, status: "completed")

@@ -1,7 +1,7 @@
 import Foundation
 import LDKNode
 
-/// Pure stability logic — direct port of src/stable.rs
+/// Pure stability logic - direct port of src/stable.rs
 enum StabilityService {
     // MARK: - Reconciliation
 
@@ -28,7 +28,7 @@ enum StabilityService {
     }
 
     /// Reconcile a forwarded payment on the LSP side.
-    /// `userSats` MUST be the balance BEFORE the spend — callers with a post-spend
+    /// `userSats` MUST be the balance BEFORE the spend - callers with a post-spend
     /// balance must add totalForwardedSats back first, or stable is over-deducted.
     /// Returns the USD amount deducted from stable, or nil if fully covered by native.
     static func reconcileForwarded(
@@ -89,22 +89,64 @@ enum StabilityService {
         sc.nativeChannelBTC = Bitcoin(sats: nativeSats)
     }
 
-    /// Reconcile an incoming payment — backingSats stays the same, native absorbs the increase.
+    /// Reconcile an incoming payment - backingSats stays the same, native absorbs the increase.
     static func reconcileIncoming(_ sc: inout StableChannel) {
         recomputeNative(&sc)
     }
 
-    /// Apply a trade — set new expected USD and recalculate backing sats + native sats.
-    static func applyTrade(_ sc: inout StableChannel, newExpectedUSD: Double, price: Double) {
-        sc.expectedUSD = USD(amount: newExpectedUSD)
+    // MARK: - Trade Outcome
+
+    enum TradeOutcome {
+        case applied
+        case rejectedDriftLoss
+        case rejectedAbovePar
+    }
+
+    /// Apply a trade - set new expected USD and recalculate backing sats + native sats.
+    /// Returns false if the target cannot preserve existing stability drift or exceeds
+    /// the receiver's locally-valued balance, leaving channel state untouched.
+    static func applyTrade(_ sc: inout StableChannel, newExpectedUSD: Double, price: Double) -> TradeOutcome {
+        // Ceiling: never allow a target above the locally-valued receiver balance.
+        // The stability threshold is a payment deadband, not extra trade capacity.
         if price > 0.0 {
-            let btcAmount = newExpectedUSD / price
-            sc.backingSats = UInt64(btcAmount * 100_000_000.0)
+            let receiverSats = sc.stableReceiverBTC.sats
+            let receiverValueUSD = Double(receiverSats) / Double(Constants.satsInBTC) * price
+            if newExpectedUSD > receiverValueUSD {
+                return .rejectedAbovePar
+            }
         }
+
+        let currentBacking = sc.backingSats
+        let receiverSats = sc.stableReceiverBTC.sats
+
+        if price > 0.0 {
+            sc.expectedUSD = USD(amount: newExpectedUSD)
+            let newBacking = UInt64((newExpectedUSD / price * Double(Constants.satsInBTC)).rounded(.down))
+                .min(receiverSats)
+            let newNative = receiverSats >= newBacking ? receiverSats - newBacking : 0
+
+            // Drift preservation: if the new backing would lose sats the drift
+            // model assigned to the receiver, reject the trade rather than
+            // silently zeroing the difference.
+            let backingLoss = currentBacking > newBacking ? currentBacking - newBacking : 0
+            let receiverDrift = receiverSats > currentBacking ? receiverSats - currentBacking : 0
+            if backingLoss > 0 && receiverDrift > 0 && backingLoss > receiverDrift {
+                sc.expectedUSD = USD(amount: sc.expectedUSD.amount)
+                sc.backingSats = currentBacking
+                sc.nativeSats = receiverSats >= currentBacking ? receiverSats - currentBacking : 0
+                return .rejectedDriftLoss
+            }
+
+            sc.backingSats = newBacking
+            sc.nativeSats = newNative
+        } else {
+            sc.backingSats = currentBacking
+        }
+
         // native_sats is everything NOT backing the stable position
-        sc.nativeSats = sc.stableReceiverBTC.sats >= sc.backingSats
-            ? sc.stableReceiverBTC.sats - sc.backingSats : 0
         recomputeNative(&sc)
+
+        return .applied
     }
 
     // MARK: - Stability Check
@@ -128,7 +170,7 @@ enum StabilityService {
     static func checkStabilityAction(_ sc: StableChannel, price: Double) -> StabilityCheckResult {
         let targetUSD = sc.expectedUSD.amount
 
-        // No backing means no stable position — nothing to drift.
+        // No backing means no stable position - nothing to drift.
         guard sc.backingSats > 0 else {
             return StabilityCheckResult(
                 action: .stable,
@@ -205,7 +247,7 @@ enum StabilityService {
         sc.channelId = channel.channelId
         sc.counterparty = channel.counterpartyNodeId
 
-        // Skip balance update if channel is not ready yet — during ChannelPending,
+        // Skip balance update if channel is not ready yet - during ChannelPending,
         // outbound_capacity_msat is 0, which produces a misleading near-zero balance.
         guard channel.isChannelReady else { return true }
 

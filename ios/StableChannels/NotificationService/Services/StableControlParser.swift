@@ -1,4 +1,5 @@
 import Foundation
+import UserNotifications
 import LDKNode
 
 enum StableControlResult {
@@ -35,6 +36,21 @@ enum StableControlParser {
                   let expectedUSD = payload["expected_usd"] as? Double else {
                 return .deferToForeground
             }
+
+            // Validate channel_id if present in signed payload
+            let channelId = payload["channel_id"] as? String ?? ""
+            let channelState = db.readChannelState()
+            if let wsChannelId = channelState?.channelId, !channelId.isEmpty,
+               channelId.lowercased() != wsChannelId.lowercased() {
+                return .deferToForeground
+            }
+
+            // Log sync_version for replay-protection audit trail
+            if let syncVersion = payload["sync_version"] as? UInt64, syncVersion > 0 {
+                NotificationServiceLogger.shared
+                    .log("SYNC_V1_VERSION sync_version=\(syncVersion) backing=\(payload["backing_sats"] ?? "nil")")
+            }
+
             let ucid = payload["user_channel_id"] as? String
             return db
                 .applySyncMessage(expectedUSD: expectedUSD, payloadUserChannelId: ucid, priceFetcher: priceFetcher) ?

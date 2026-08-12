@@ -294,12 +294,12 @@ final class IncomingPaymentHandler: PaymentHandler {
         let liveReceiverSats = channelState.receiverSats
 
         let equilibrium = UInt64((channelState.expectedUSD / price * Double(Constants.satsInBTC)).rounded(.down))
-            .min(liveReceiverSats)
+        let backingCap = min(equilibrium, liveReceiverSats)
         let backingAfter: UInt64
-        if backingBefore >= equilibrium {
+        if backingBefore >= backingCap {
             backingAfter = backingBefore
         } else {
-            backingAfter = min(backingBefore + amountSats, equilibrium)
+            backingAfter = min(backingBefore + amountSats, backingCap)
         }
         let nativeAfter = liveReceiverSats >= backingAfter ? (liveReceiverSats - backingAfter) : 0
 
