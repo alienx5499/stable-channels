@@ -4,48 +4,56 @@ import LDKNode
 /// Updates balances across StableChannel, Lightning, and Onchain states.
 enum BalanceUpdater {
     /// Update balances across channels, onchain wallet, and price feed.
+    @discardableResult
     static func updateBalances(
         sc: inout StableChannel,
         channels: [ChannelDetails],
-        balances: Balances?,
+        onchainBalanceSats: UInt64,
         price: Double
-    ) {
-        sc.latestPrice = price
+    ) -> Bool {
+        if price > 0.0 {
+            sc.latestPrice = price
+        }
 
-        let activeChannel: ChannelDetails?
-        if !sc.userChannelId.isEmpty {
-            activeChannel = channels.first { $0.userChannelId == sc.userChannelId }
+        sc.onchainBTC = Bitcoin(sats: onchainBalanceSats)
+        sc.onchainUSD = USD.fromBitcoin(sc.onchainBTC, price: sc.latestPrice)
+
+        let matchingChannel: ChannelDetails?
+        if sc.userChannelId.isEmpty {
+            matchingChannel = channels.first
         } else {
-            activeChannel = channels.first
+            matchingChannel = channels.first { $0.userChannelId == sc.userChannelId }
         }
 
-        if let channel = activeChannel {
-            let receiverSats = channel.outboundCapacityMsat / 1000
-            sc.stableReceiverBTC = Bitcoin(sats: receiverSats)
-            sc.stableReceiverUSD = USD.fromBitcoin(sc.stableReceiverBTC, price: price)
+        guard let channel = matchingChannel else { return false }
 
-            if sc.channelId.isEmpty {
-                sc.channelId = channel.channelId
-            }
-            if sc.userChannelId.isEmpty {
-                sc.userChannelId = channel.userChannelId
-            }
-            if sc.counterparty == Constants.defaultLSPPubkey || sc.counterparty.isEmpty {
-                sc.counterparty = channel.counterpartyNodeId
-            }
+        if sc.userChannelId.isEmpty {
+            sc.userChannelId = channel.userChannelId
+            sc.channelId = channel.channelId
+        }
+        sc.channelId = channel.channelId
+        sc.counterparty = channel.counterpartyNodeId
 
-            StabilityReconciler.recomputeNative(&sc)
-        } else if channels.isEmpty {
-            sc.stableReceiverBTC = .zero
-            sc.stableReceiverUSD = .zero
-            sc.nativeChannelBTC = .zero
-            sc.backingSats = 0
-            sc.nativeSats = 0
+        guard channel.isChannelReady else { return true }
+
+        let unspendablePunishmentSats = channel.unspendablePunishmentReserve ?? 0
+        let ourBalanceSats = (channel.outboundCapacityMsat / 1000) + unspendablePunishmentSats
+        let theirBalanceSats = channel.channelValueSats > ourBalanceSats
+            ? channel.channelValueSats - ourBalanceSats : 0
+
+        if sc.isStableReceiver {
+            sc.stableReceiverBTC = Bitcoin(sats: ourBalanceSats)
+            sc.stableProviderBTC = Bitcoin(sats: theirBalanceSats)
+        } else {
+            sc.stableProviderBTC = Bitcoin(sats: ourBalanceSats)
+            sc.stableReceiverBTC = Bitcoin(sats: theirBalanceSats)
         }
 
-        if let balances {
-            sc.onchainBTC = Bitcoin(sats: balances.totalOnchainBalanceSats)
-            sc.onchainUSD = USD.fromBitcoin(sc.onchainBTC, price: price)
-        }
+        sc.stableReceiverUSD = USD.fromBitcoin(sc.stableReceiverBTC, price: sc.latestPrice)
+        sc.stableProviderUSD = USD.fromBitcoin(sc.stableProviderBTC, price: sc.latestPrice)
+
+        StabilityReconciler.recomputeNative(&sc)
+
+        return true
     }
 }

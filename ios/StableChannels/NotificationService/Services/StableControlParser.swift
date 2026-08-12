@@ -44,15 +44,20 @@ enum StableControlParser {
                 return .deferToForeground
             }
 
-            // Log sync_version for replay-protection audit trail
-            if let syncVersion = payload["sync_version"] as? UInt64, syncVersion > 0 {
+            let syncVersion = payload["sync_version"] as? UInt64
+            if let syncVersion, syncVersion > 0 {
                 NotificationServiceLogger.shared
                     .log("SYNC_V1_VERSION sync_version=\(syncVersion) backing=\(payload["backing_sats"] ?? "nil")")
             }
 
             let ucid = payload["user_channel_id"] as? String
             return db
-                .applySyncMessage(expectedUSD: expectedUSD, payloadUserChannelId: ucid, priceFetcher: priceFetcher) ?
+                .applySyncMessage(
+                    expectedUSD: expectedUSD,
+                    payloadUserChannelId: ucid,
+                    syncVersion: syncVersion,
+                    priceFetcher: priceFetcher
+                ) ?
                 .handled : .deferToForeground
         }
         return .none

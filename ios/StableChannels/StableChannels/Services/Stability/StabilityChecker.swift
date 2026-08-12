@@ -5,14 +5,17 @@ import LDKNode
 enum StabilityChecker {
     enum StabilityAction: String {
         case stable = "STABLE"
+        case highRiskNoAction = "HIGH_RISK_NO_ACTION"
+        case checkOnly = "CHECK_ONLY"
         case pay = "PAY"
-        case receive = "RECEIVE"
     }
 
-    struct StabilityResult {
+    struct StabilityCheckResult {
         let action: StabilityAction
-        let amountUSD: Double
-        let amountSats: UInt64
+        let percentFromPar: Double
+        let stableUSDValue: Double
+        let targetUSD: Double
+        let dollarsFromPar: Double
     }
 
     /// Determine whether allocation drift exceeds stability payment thresholds.
@@ -30,63 +33,46 @@ enum StabilityChecker {
         return driftUSD >= Constants.stabilityThresholdUSD && driftPercent >= Constants.stabilityThresholdPercent
     }
 
-    /// Primary stability check function.
-    static func checkStabilityAction(_ sc: StableChannel, price: Double) -> StabilityResult {
-        guard sc.isStableReceiver, sc.expectedUSD.amount > 0, price > 0 else {
-            return StabilityResult(action: .stable, amountUSD: 0, amountSats: 0)
+    /// Determine the stability action without sending payment.
+    static func checkStabilityAction(_ sc: StableChannel, price: Double) -> StabilityCheckResult {
+        let targetUSD = sc.expectedUSD.amount
+
+        // No backing means no stable position - nothing to drift.
+        guard sc.backingSats > 0 else {
+            return StabilityCheckResult(
+                action: .stable,
+                percentFromPar: 0.0,
+                stableUSDValue: 0.0,
+                targetUSD: targetUSD,
+                dollarsFromPar: 0.0
+            )
         }
 
-        let receiverSats = sc.stableReceiverBTC.sats
-        let effectiveBacking = sc.backingSats > 0
-            ? min(sc.backingSats, receiverSats)
-            : UInt64((sc.expectedUSD.amount / price * Double(Constants.satsInBTC)).rounded(.down)).min(receiverSats)
+        let stableUSDValue = Double(sc.backingSats) / 100_000_000.0 * price
 
-        let currentBackingUSD = Double(effectiveBacking) / Double(Constants.satsInBTC) * price
-        let diffUSD = currentBackingUSD - sc.expectedUSD.amount
-        let absDiffUSD = abs(diffUSD)
-        let percentDiff = (absDiffUSD / sc.expectedUSD.amount) * 100.0
+        let dollarsFromPar = stableUSDValue - targetUSD
+        let percentFromPar = targetUSD > 0.0 ? abs(dollarsFromPar / targetUSD) * 100.0 : 0.0
+        let isReceiverBelowExpected = stableUSDValue < targetUSD
 
-        if absDiffUSD >= Constants.stabilityThresholdUSD, percentDiff >= Constants.stabilityThresholdPercent {
-            let diffSats = UInt64((absDiffUSD / price * Double(Constants.satsInBTC)).rounded(.down))
-            if diffUSD > 0 {
-                return StabilityResult(action: .pay, amountUSD: absDiffUSD, amountSats: diffSats)
-            } else {
-                return StabilityResult(action: .receive, amountUSD: absDiffUSD, amountSats: diffSats)
-            }
-        }
-
-        return StabilityResult(action: .stable, amountUSD: 0, amountSats: 0)
-    }
-
-    /// Evaluate channels to check if any stability action is required.
-    static func checkChannels(
-        channels: [ChannelDetails],
-        sc: inout StableChannel,
-        price: Double
-    ) -> (action: StabilityAction, amountUSD: Double, amountSats: UInt64) {
-        guard !channels.isEmpty else {
-            return (.stable, 0, 0)
-        }
-
-        let matchingChannel: ChannelDetails?
-        if !sc.userChannelId.isEmpty {
-            matchingChannel = channels.first { $0.userChannelId == sc.userChannelId }
+        let action: StabilityAction
+        if percentFromPar < Constants.stabilityThresholdPercent
+            || abs(dollarsFromPar) < Constants.stabilityThresholdUSD {
+            action = .stable
+        } else if sc.riskLevel > Constants.maxRiskLevel {
+            action = .highRiskNoAction
+        } else if (sc.isStableReceiver && isReceiverBelowExpected)
+            || (!sc.isStableReceiver && !isReceiverBelowExpected) {
+            action = .checkOnly
         } else {
-            matchingChannel = channels.first
+            action = .pay
         }
 
-        guard let channel = matchingChannel else {
-            return (.stable, 0, 0)
-        }
-
-        let totalSats = channel.outboundCapacityMsat / 1000
-        sc.stableReceiverBTC = Bitcoin(sats: totalSats)
-        sc.stableReceiverUSD = USD.fromBitcoin(sc.stableReceiverBTC, price: price)
-        sc.latestPrice = price
-
-        StabilityReconciler.recomputeNative(&sc)
-
-        let result = checkStabilityAction(sc, price: price)
-        return (result.action, result.amountUSD, result.amountSats)
+        return StabilityCheckResult(
+            action: action,
+            percentFromPar: percentFromPar,
+            stableUSDValue: stableUSDValue,
+            targetUSD: targetUSD,
+            dollarsFromPar: dollarsFromPar
+        )
     }
 }

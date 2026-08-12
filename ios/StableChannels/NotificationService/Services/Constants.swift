@@ -12,6 +12,7 @@ enum Constants {
     static let stabilityPaymentClockSkewSecs: Double = 60
     static let satsInBTC: Double = 100_000_000.0
     static let stabilityThresholdPercent: Double = 0.1
+    static let stabilityThresholdUSD: Double = 0.25
 }
 
 enum Diagnostics {

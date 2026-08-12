@@ -1800,8 +1800,10 @@ class AppState {
         let backingBefore = stableChannel.backingSats
         let liveReceiverSats = stableChannel.stableReceiverBTC.sats
 
-        let equilibrium = UInt64((localExpectedUSD / price * Double(Constants.satsInBTC)).rounded(.down))
-            .min(liveReceiverSats)
+        let equilibrium = min(
+            UInt64((localExpectedUSD / price * Double(Constants.satsInBTC)).rounded(.down)),
+            liveReceiverSats
+        )
         let backingAfter: UInt64
         if backingBefore >= equilibrium {
             backingAfter = backingBefore
