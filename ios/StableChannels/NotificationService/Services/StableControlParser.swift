@@ -44,19 +44,17 @@ enum StableControlParser {
                 return .deferToForeground
             }
 
-            let syncVersion = payload["sync_version"] as? UInt64
-            if let syncVersion, syncVersion > 0 {
-                NotificationServiceLogger.shared
-                    .log("SYNC_V1_VERSION sync_version=\(syncVersion) backing=\(payload["backing_sats"] ?? "nil")")
-            }
+            let price = priceFetcher.fetchPrice()
+            guard price > 0 else { return .deferToForeground }
 
+            let syncVersion = payload["sync_version"] as? UInt64
             let ucid = payload["user_channel_id"] as? String
             return db
                 .applySyncMessage(
                     expectedUSD: expectedUSD,
                     payloadUserChannelId: ucid,
                     syncVersion: syncVersion,
-                    priceFetcher: priceFetcher
+                    price: price
                 ) ?
                 .handled : .deferToForeground
         }

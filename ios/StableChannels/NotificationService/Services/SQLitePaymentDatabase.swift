@@ -228,7 +228,7 @@ final class SQLitePaymentDatabase: PaymentDatabase {
         expectedUSD: Double,
         payloadUserChannelId: String?,
         syncVersion: UInt64?,
-        priceFetcher: PriceFetcher
+        price: Double
     ) -> Bool {
         let ucid: String
         if let payloadUserChannelId, !payloadUserChannelId.isEmpty {
@@ -266,7 +266,7 @@ final class SQLitePaymentDatabase: PaymentDatabase {
         let currentExpectedUSD = sqlite3_column_double(selectStmt, 0)
         let currentBacking = UInt64(sqlite3_column_int64(selectStmt, 1))
         let receiverSats = UInt64(sqlite3_column_int64(selectStmt, 2))
-        let price = sqlite3_column_double(selectStmt, 3)
+        let storedPrice = sqlite3_column_double(selectStmt, 3)
         let currentSyncVersion = UInt64(sqlite3_column_int64(selectStmt, 4))
         sqlite3_finalize(selectStmt)
 
@@ -278,9 +278,16 @@ final class SQLitePaymentDatabase: PaymentDatabase {
             }
         }
 
-        var finalPrice = price
-        if finalPrice <= 0 {
-            finalPrice = priceFetcher.fetchPrice()
+        // Monotonic expected_usd check: prevent unauthorized target reduction during sync updates
+        guard expectedUSD >= currentExpectedUSD else {
+            sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
+            return false
+        }
+
+        let finalPrice = price > 0 ? price : storedPrice
+        guard finalPrice > 0 else {
+            sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
+            return false
         }
 
         guard let newBacking = tradeBackingAfterDelta(

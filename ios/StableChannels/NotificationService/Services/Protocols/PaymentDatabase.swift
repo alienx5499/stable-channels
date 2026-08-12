@@ -21,7 +21,7 @@ protocol PaymentDatabase {
         expectedUSD: Double,
         payloadUserChannelId: String?,
         syncVersion: UInt64?,
-        priceFetcher: PriceFetcher
+        price: Double
     ) -> Bool
     func setPendingSendPaymentId(paymentId: String) -> Bool
     func claimPendingSend(amountMsat: UInt64, price: Double) -> Bool

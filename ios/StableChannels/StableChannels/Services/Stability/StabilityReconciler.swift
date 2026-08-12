@@ -2,61 +2,74 @@ import Foundation
 
 /// Handles position reconciliation when payments or forwards occur.
 enum StabilityReconciler {
-    /// Reconcile an outgoing payment. Returns deducted sats if stable position was drained.
-    static func reconcileOutgoing(_ sc: inout StableChannel, price: Double) -> UInt64? {
-        guard sc.isStableReceiver, sc.expectedUSD.amount > 0, price > 0 else { return nil }
+    /// Reconcile an outgoing payment against the stable position.
+    /// Returns the USD amount deducted from stable, or nil if fully covered by native BTC.
+    static func reconcileOutgoing(_ sc: inout StableChannel, price: Double) -> Double? {
+        guard sc.expectedUSD.amount > 0.01, sc.backingSats > 0, price > 0.0 else { return nil }
 
-        let targetSats = UInt64((sc.expectedUSD.amount / price * Double(Constants.satsInBTC)).rounded(.down))
-        let receiverSats = sc.stableReceiverBTC.sats
+        let userSats = sc.stableReceiverBTC.sats
+        guard sc.backingSats > userSats else { return nil }
 
-        guard receiverSats < targetSats else { return nil }
+        let overflowSats = sc.backingSats - userSats
+        let usdToDeduct = Double(overflowSats) / Double(Constants.satsInBTC) * price
+        let newExpected = max(sc.expectedUSD.amount - usdToDeduct, 0.0)
 
-        let deficitSats = targetSats - receiverSats
-        let deficitUSD = Double(deficitSats) / Double(Constants.satsInBTC) * price
-
-        var deductedUSD = deficitUSD
-        if sc.expectedUSD.amount < deficitUSD {
-            deductedUSD = sc.expectedUSD.amount
-        }
-
-        sc.expectedUSD = USD(amount: max(sc.expectedUSD.amount - deductedUSD, 0))
-
-        let newTargetSats = UInt64((sc.expectedUSD.amount / price * Double(Constants.satsInBTC)).rounded(.down))
-        sc.backingSats = min(newTargetSats, receiverSats)
-
-        let deductedSats = UInt64((deductedUSD / price * Double(Constants.satsInBTC)).rounded(.down))
-
+        sc.expectedUSD = USD(amount: newExpected)
+        let btcAmount = newExpected / price
+        sc.backingSats = UInt64(btcAmount * 100_000_000.0)
         recomputeNative(&sc)
-        return deductedSats
+
+        return usdToDeduct
     }
 
-    /// Reconcile a forwarded payment.
-    static func reconcileForwarded(_ sc: inout StableChannel, price: Double) {
-        guard sc.isStableReceiver, sc.expectedUSD.amount > 0, price > 0 else { return }
+    /// Reconcile a forwarded payment on the LSP side.
+    /// `userSats` MUST be the balance BEFORE the spend - callers with a post-spend
+    /// balance must add totalForwardedSats back first, or stable is over-deducted.
+    /// Returns the USD amount deducted from stable, or nil if fully covered by native.
+    static func reconcileForwarded(
+        _ sc: inout StableChannel,
+        userSats: UInt64,
+        totalForwardedSats: UInt64,
+        price: Double
+    ) -> Double? {
+        guard sc.expectedUSD.amount > 0.0, price > 0.0 else { return nil }
 
-        let targetSats = UInt64((sc.expectedUSD.amount / price * Double(Constants.satsInBTC)).rounded(.down))
-        let receiverSats = sc.stableReceiverBTC.sats
+        let nativeSats = userSats >= sc.backingSats ? userSats - sc.backingSats : 0
+        let overflowSats = totalForwardedSats >= nativeSats ? totalForwardedSats - nativeSats : 0
 
-        if receiverSats < targetSats {
-            let deficitSats = targetSats - receiverSats
-            let deficitUSD = Double(deficitSats) / Double(Constants.satsInBTC) * price
-            sc.expectedUSD = USD(amount: max(sc.expectedUSD.amount - deficitUSD, 0))
-            let newTargetSats = UInt64((sc.expectedUSD.amount / price * Double(Constants.satsInBTC)).rounded(.down))
-            sc.backingSats = min(newTargetSats, receiverSats)
-        } else {
-            sc.backingSats = min(targetSats, receiverSats)
+        guard overflowSats > 0 else { return nil }
+
+        let usdToDeduct = Double(overflowSats) / Double(Constants.satsInBTC) * price
+        let newExpected = max(sc.expectedUSD.amount - usdToDeduct, 0.0)
+
+        sc.expectedUSD = USD(amount: newExpected)
+        if price > 0.0 {
+            let btcAmount = newExpected / price
+            sc.backingSats = UInt64(btcAmount * 100_000_000.0)
         }
-
         recomputeNative(&sc)
+
+        return usdToDeduct
     }
 
-    /// Deduct a specific USD amount from the expected USD position.
-    static func deductOutgoing(_ sc: inout StableChannel, amountUSD: Double, price: Double) {
-        guard sc.isStableReceiver, sc.expectedUSD.amount > 0, price > 0 else { return }
-        sc.expectedUSD = USD(amount: max(sc.expectedUSD.amount - amountUSD, 0))
-        let targetSats = UInt64((sc.expectedUSD.amount / price * Double(Constants.satsInBTC)).rounded(.down))
-        sc.backingSats = min(targetSats, sc.stableReceiverBTC.sats)
+    /// Pre-deduct stable balance for a known outgoing amount (e.g. splice-out).
+    /// Returns the USD amount deducted, or nil if fully covered by native.
+    static func deductOutgoing(_ sc: inout StableChannel, amountSats: UInt64, price: Double) -> Double? {
+        guard sc.expectedUSD.amount > 0.01, price > 0.0 else { return nil }
+
+        let nativeSats = sc.nativeChannelBTC.sats
+        guard amountSats > nativeSats else { return nil }
+
+        let overflowSats = amountSats - nativeSats
+        let usdToDeduct = Double(overflowSats) / Double(Constants.satsInBTC) * price
+        let newExpected = max(sc.expectedUSD.amount - usdToDeduct, 0.0)
+
+        sc.expectedUSD = USD(amount: newExpected)
+        let btcAmount = newExpected / price
+        sc.backingSats = UInt64(btcAmount * 100_000_000.0)
         recomputeNative(&sc)
+
+        return usdToDeduct
     }
 
     /// Reconcile an incoming payment - backingSats stays the same, native absorbs the increase.
@@ -64,11 +77,11 @@ enum StabilityReconciler {
         recomputeNative(&sc)
     }
 
-    /// Recompute native Channel BTC.
+    /// Recompute native BTC from receiver sats and backing sats.
     static func recomputeNative(_ sc: inout StableChannel) {
-        let receiverSats = sc.stableReceiverBTC.sats
-        let backing = sc.backingSats
-        let nativeSats = receiverSats >= backing ? receiverSats - backing : 0
+        let nativeSats = sc.stableReceiverBTC.sats >= sc.backingSats
+            ? sc.stableReceiverBTC.sats - sc.backingSats
+            : 0
         sc.nativeSats = nativeSats
         sc.nativeChannelBTC = Bitcoin(sats: nativeSats)
     }

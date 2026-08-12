@@ -14,29 +14,25 @@ enum StabilityService {
     // MARK: - Reconciliation Delegation
 
     static func reconcileOutgoing(_ sc: inout StableChannel, price: Double) -> Double? {
-        if let deductedSats = StabilityReconciler.reconcileOutgoing(&sc, price: price) {
-            return Double(deductedSats) / Double(Constants.satsInBTC) * price
-        }
-        return nil
+        StabilityReconciler.reconcileOutgoing(&sc, price: price)
     }
 
     static func reconcileForwarded(
         _ sc: inout StableChannel,
-        userSats _: UInt64,
-        totalForwardedSats _: UInt64,
+        userSats: UInt64,
+        totalForwardedSats: UInt64,
         price: Double
     ) -> Double? {
-        StabilityReconciler.reconcileForwarded(&sc, price: price)
-        return nil
+        StabilityReconciler.reconcileForwarded(
+            &sc,
+            userSats: userSats,
+            totalForwardedSats: totalForwardedSats,
+            price: price
+        )
     }
 
     static func deductOutgoing(_ sc: inout StableChannel, amountSats: UInt64, price: Double) -> Double? {
-        StabilityReconciler.deductOutgoing(
-            &sc,
-            amountUSD: Double(amountSats) / Double(Constants.satsInBTC) * price,
-            price: price
-        )
-        return nil
+        StabilityReconciler.deductOutgoing(&sc, amountSats: amountSats, price: price)
     }
 
     static func recomputeNative(_ sc: inout StableChannel) {
