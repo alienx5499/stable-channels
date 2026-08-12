@@ -729,4 +729,91 @@ final class DatabaseServiceTests: XCTestCase {
             )
         )
     }
+
+    func testSignedStabilityPayment() throws {
+        // 1. Save a channel
+        try service.channelRepo.saveChannel(
+            channelId: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+            userChannelId: "user-channel-1",
+            expectedUSD: 100,
+            backingSats: 1_000,
+            note: nil
+        )
+
+        // 2. Register inbound stability settlement
+        let reg = try service.paymentRepo.registerInboundStabilitySettlement(
+            settlementId: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f21",
+            paymentId: "payment-hash-1",
+            channelId: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+            amountMsat: 100_000,
+            direction: "lsp_to_user",
+            envelope: "{}"
+        )
+        XCTAssertEqual(reg, .new)
+
+        // 3. Replay register should return pending and match fields
+        let regReplay = try service.paymentRepo.registerInboundStabilitySettlement(
+            settlementId: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f21",
+            paymentId: "payment-hash-1",
+            channelId: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+            amountMsat: 100_000,
+            direction: "lsp_to_user",
+            envelope: "{}"
+        )
+        XCTAssertEqual(regReplay, .pending)
+
+        // 4. Conflicting replay should fail
+        XCTAssertThrowsError(
+            try service.paymentRepo.registerInboundStabilitySettlement(
+                settlementId: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f21",
+                paymentId: "payment-hash-different",
+                channelId: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+                amountMsat: 100_000,
+                direction: "lsp_to_user",
+                envelope: "{}"
+            )
+        )
+
+        // 5. Inbound receivedAt
+        let rec = try service.paymentRepo.inboundStabilitySettlementReceivedAt(
+            settlementId: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f21"
+        )
+        XCTAssertNotNil(rec)
+
+        // 6. Finish invalid should set state
+        try service.paymentRepo.finishInboundStabilitySettlement(
+            settlementId: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f21",
+            state: "invalid",
+            reason: "test_reason"
+        )
+
+        // 7. Atomic update after successful verification
+        let reg2 = try service.paymentRepo.registerInboundStabilitySettlement(
+            settlementId: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f22",
+            paymentId: "payment-hash-2",
+            channelId: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+            amountMsat: 100_000,
+            direction: "lsp_to_user",
+            envelope: "{}"
+        )
+        XCTAssertEqual(reg2, .new)
+
+        let result = try service.paymentRepo.recordSignedStabilityPaymentAndUpdateAllocation(
+            paymentId: "payment-hash-2",
+            settlementId: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f22",
+            amountMsat: 100_000,
+            amountUSD: 1.0,
+            btcPrice: 100_000.0,
+            userChannelId: "user-channel-1",
+            backingSatsBefore: 1000,
+            backingSatsAfter: 1100,
+            nativeSatsAfter: 900
+        )
+        XCTAssertTrue(result.isNewPayment)
+        XCTAssertEqual(result.backingSats, 1100)
+
+        // Verify updated channel allocation in DB
+        let channel = try service.channelRepo.loadChannel(userChannelId: "user-channel-1")
+        XCTAssertEqual(channel?.stableSats, 1100)
+    }
 }

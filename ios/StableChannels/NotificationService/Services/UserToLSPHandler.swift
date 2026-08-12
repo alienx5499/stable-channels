@@ -108,12 +108,75 @@ final class UserToLSPHandler: PaymentHandler {
 
         // Send keysend
         do {
-            let tlvRecord = CustomTlvRecord(typeNum: Constants.stableChannelTLVType, value: Data([1]))
+            var channelId = channelState.channelId
+            if channelId.isEmpty {
+                let userChannelId = channelState.userChannelId
+                if let activeChannel = node.listChannels().first(where: { userChannelId == "\($0.userChannelId)" }) {
+                    channelId = "\(activeChannel.channelId)"
+                }
+            }
+            guard !channelId.isEmpty else {
+                completion(
+                    mutator.buildPending(
+                        base: baseContent,
+                        title: "Payment Pending",
+                        body: "Open app to process stability payment"
+                    ),
+                    true
+                )
+                return
+            }
+
+            var entropyBytes = [UInt8](repeating: 0, count: 32)
+            _ = SecRandomCopyBytes(kSecRandomDefault, entropyBytes.count, &entropyBytes)
+            let settlementId = entropyBytes.map { String(format: "%02x", $0) }.joined()
+            let createdAt = UInt64(Date().timeIntervalSince1970)
+            let expiresAt = createdAt + 1209600 // 14 days
+
+            let payloadDict: [String: Any] = [
+                "type": "STABILITY_PAYMENT_V1",
+                "settlement_id": settlementId,
+                "channel_id": channelId.lowercased(),
+                "amount_msat": amountMsat,
+                "direction": "user_to_lsp",
+                "expected_usd": targetUSD,
+                "created_at": createdAt,
+                "expires_at": expiresAt
+            ]
+
+            guard let payloadData = try? JSONSerialization.data(withJSONObject: payloadDict),
+                  let payloadStr = String(data: payloadData, encoding: .utf8) else {
+                throw NSError(
+                    domain: "StableChannels",
+                    code: 1,
+                    userInfo: [NSLocalizedDescriptionKey: "Failed to serialize payload"]
+                )
+            }
+
+            let signature = try node.signMessage(msg: Array(payloadStr.utf8))
+
+            let envelopeDict: [String: Any] = [
+                "payload": payloadStr,
+                "signature": signature
+            ]
+
+            guard let envelopeData = try? JSONSerialization.data(withJSONObject: envelopeDict),
+                  let envelopeStr = String(data: envelopeData, encoding: .utf8) else {
+                throw NSError(
+                    domain: "StableChannels",
+                    code: 2,
+                    userInfo: [NSLocalizedDescriptionKey: "Failed to serialize envelope"]
+                )
+            }
+
+            let markerRecord = CustomTlvRecord(typeNum: Constants.stableChannelTLVType, value: Data([1]))
+            let signedRecord = CustomTlvRecord(typeNum: Constants.signedStabilityTLVType, value: Data(envelopeStr.utf8))
+
             let paymentId = try node.spontaneousPayment().sendWithCustomTlvs(
                 amountMsat: amountMsat,
                 nodeId: Constants.lspPubkey,
                 routeParameters: nil,
-                customTlvs: [tlvRecord]
+                customTlvs: [markerRecord, signedRecord]
             )
 
             // Payment ID Guard

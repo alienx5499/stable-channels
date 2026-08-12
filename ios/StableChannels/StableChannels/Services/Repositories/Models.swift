@@ -6,6 +6,13 @@ struct PaymentPersistenceResult {
     let backingSats: UInt64?
 }
 
+enum InboundStabilityRegistration: String {
+    case new
+    case pending
+    case applied
+    case invalid
+}
+
 enum DatabaseError: LocalizedError {
     case openFailed(String)
     case prepareFailed(String)

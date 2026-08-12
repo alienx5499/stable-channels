@@ -5,8 +5,12 @@ enum Constants {
 
     static let satsInBTC: UInt64 = 100_000_000
     static let stableChannelTLVType: UInt64 = 13_377_331
+    static let signedStabilityTLVType: UInt64 = 13_377_333
     static let tradeMessageType = "TRADE_V1"
     static let syncMessageType = "SYNC_V1"
+    static let stabilityPaymentMessageType = "STABILITY_PAYMENT_V1"
+    static let stabilityPaymentAuthTTLSecs: Double = 14 * 24 * 60 * 60
+    static let stabilityPaymentClockSkewSecs: Double = 60
 
     // MARK: - Default Configuration
 

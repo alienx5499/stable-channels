@@ -1364,6 +1364,17 @@ class AppState {
         let paymentHashStr = "\(paymentHash)"
         let paymentIdStr = paymentId.map { "\($0)" } ?? paymentHashStr
 
+        // Check for SIGNED_STABILITY_TLV_TYPE
+        if let signedRecord = customRecords.first(where: { $0.typeNum == Constants.signedStabilityTLVType }) {
+            handleSignedStabilityPaymentReceived(
+                record: signedRecord,
+                amountMsat: amountMsat,
+                paymentHashStr: paymentHashStr,
+                ackToken: ackToken
+            )
+            return
+        }
+
         // Check for SYNC_V1 message from LSP
         if handleSyncMessage(customRecords: customRecords, paymentHash: paymentHashStr) {
             refreshBalances()
@@ -1396,10 +1407,20 @@ class AppState {
 
         let price = stableChannel.latestPrice
         let amountUSD: Double? = price > 0 ? (Double(amountMsat) / 1000.0 / 100_000_000.0) * price : nil
-        let isStabilityPayment = customRecords
-            .contains { $0.typeNum == Constants.stableChannelTLVType && $0.value == Data([1]) }
-        let paymentType = isStabilityPayment ? "stability" : "lightning"
-        let backingDelta: Int64? = isStabilityPayment ? Int64(amountMsat / 1000) : nil
+
+        let hasLegacyStabilityMarker = customRecords.contains {
+            $0.typeNum == Constants.stableChannelTLVType && $0.value == Data([1])
+        }
+        if hasLegacyStabilityMarker {
+            AuditService.log("LEGACY_STABILITY_MARKER_UNAUTHENTICATED", data: [
+                "payment_hash": paymentHashStr,
+                "amount_msat": "\(amountMsat)"
+            ])
+        }
+
+        let isStabilityPayment = false
+        let paymentType = "lightning"
+        let backingDelta: Int64? = nil
 
         // Atomically insert payment row and increment backing sats in one SQLite transaction.
         // On DB failure, veto the ack so LDK re-delivers the event.
@@ -1472,6 +1493,360 @@ class AppState {
         paymentFlash = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
             self?.paymentFlash = false
+        }
+    }
+
+    private func isLowerHex32(_ s: String) -> Bool {
+        return s.count == 64 && s.allSatisfy { $0.isNumber || ("a"..."f").contains($0) }
+    }
+
+    private func recordUntrustedSignedStabilityAsLightning(
+        paymentHashStr: String,
+        amountMsat: UInt64,
+        ackToken: EventAckToken?
+    ) {
+        guard let databaseService else {
+            ackToken?.shouldAck = false
+            return
+        }
+        let price = stableChannel.latestPrice
+        let amountUSD = price > 0 ? (Double(amountMsat) / 1000.0 / 100_000_000.0) * price : nil
+        do {
+            _ = try databaseService.paymentRepo.recordPaymentAndMaybeUpdateBacking(
+                paymentId: paymentHashStr,
+                paymentType: "lightning",
+                direction: "received",
+                amountMsat: amountMsat,
+                amountUSD: amountUSD,
+                btcPrice: price > 0 ? price : nil,
+                status: "completed",
+                userChannelId: nil,
+                backingDeltaSats: nil
+            )
+        } catch {
+            ackToken?.shouldAck = false
+            AuditService.log("PAYMENT_PERSIST_FAILED", data: [
+                "payment_hash": paymentHashStr,
+                "error": error.localizedDescription
+            ])
+        }
+    }
+
+    private func handleSignedStabilityPaymentReceived(
+        record: CustomTlvRecord,
+        amountMsat: UInt64,
+        paymentHashStr: String,
+        ackToken: EventAckToken?
+    ) {
+        guard record.value.count <= 8192 else {
+            AuditService.log("STABILITY_PAYMENT_PAYLOAD_INVALID", data: [
+                "payment_hash": paymentHashStr,
+                "reason": "oversize",
+                "payload_len": "\(record.value.count)"
+            ])
+            recordUntrustedSignedStabilityAsLightning(
+                paymentHashStr: paymentHashStr,
+                amountMsat: amountMsat,
+                ackToken: ackToken
+            )
+            return
+        }
+
+        guard let raw = String(data: record.value, encoding: .utf8) else {
+            AuditService.log("STABILITY_PAYMENT_PAYLOAD_INVALID", data: [
+                "payment_hash": paymentHashStr,
+                "reason": "utf8"
+            ])
+            recordUntrustedSignedStabilityAsLightning(
+                paymentHashStr: paymentHashStr,
+                amountMsat: amountMsat,
+                ackToken: ackToken
+            )
+            return
+        }
+
+        guard let envelopeData = raw.data(using: .utf8),
+              let envelope = try? JSONSerialization.jsonObject(with: envelopeData) as? [String: Any],
+              let payloadStr = envelope["payload"] as? String,
+              let signature = envelope["signature"] as? String else {
+            AuditService.log("STABILITY_PAYMENT_PAYLOAD_INVALID", data: [
+                "payment_hash": paymentHashStr,
+                "reason": "envelope"
+            ])
+            recordUntrustedSignedStabilityAsLightning(
+                paymentHashStr: paymentHashStr,
+                amountMsat: amountMsat,
+                ackToken: ackToken
+            )
+            return
+        }
+
+        guard let payloadData = payloadStr.data(using: .utf8),
+              let payload = try? JSONSerialization.jsonObject(with: payloadData) as? [String: Any],
+              let kind = payload["type"] as? String,
+              kind == Constants.stabilityPaymentMessageType,
+              let settlementId = payload["settlement_id"] as? String,
+              let channelId = payload["channel_id"] as? String,
+              let signedAmountMsat = payload["amount_msat"] as? UInt64 ?? (payload["amount_msat"] as? NSNumber)?
+              .uint64Value,
+              let directionStr = payload["direction"] as? String,
+              let expectedUsd = payload["expected_usd"] as? Double,
+              let createdAt = payload["created_at"] as? UInt64 ?? (payload["created_at"] as? NSNumber)?.uint64Value,
+              let expiresAt = payload["expires_at"] as? UInt64 ?? (payload["expires_at"] as? NSNumber)?.uint64Value
+        else {
+            AuditService.log("STABILITY_PAYMENT_PAYLOAD_INVALID", data: [
+                "payment_hash": paymentHashStr,
+                "reason": "fields"
+            ])
+            recordUntrustedSignedStabilityAsLightning(
+                paymentHashStr: paymentHashStr,
+                amountMsat: amountMsat,
+                ackToken: ackToken
+            )
+            return
+        }
+
+        guard isLowerHex32(settlementId),
+              isLowerHex32(channelId),
+              signedAmountMsat > 0,
+              signedAmountMsat % 1000 == 0,
+              expectedUsd >= 0,
+              createdAt <= expiresAt,
+              expiresAt - createdAt <= UInt64(Constants.stabilityPaymentAuthTTLSecs) else {
+            AuditService.log("STABILITY_PAYMENT_PAYLOAD_INVALID", data: [
+                "payment_hash": paymentHashStr,
+                "reason": "fields_validation"
+            ])
+            recordUntrustedSignedStabilityAsLightning(
+                paymentHashStr: paymentHashStr,
+                amountMsat: amountMsat,
+                ackToken: ackToken
+            )
+            return
+        }
+
+        guard let databaseService else {
+            ackToken?.shouldAck = false
+            return
+        }
+
+        let registration: InboundStabilityRegistration
+        do {
+            registration = try databaseService.paymentRepo.registerInboundStabilitySettlement(
+                settlementId: settlementId,
+                paymentId: paymentHashStr,
+                channelId: channelId,
+                amountMsat: signedAmountMsat,
+                direction: directionStr,
+                envelope: raw
+            )
+        } catch {
+            AuditService.log("STABILITY_PAYMENT_REPLAY_CONFLICT", data: [
+                "settlement_id": settlementId,
+                "payment_hash": paymentHashStr,
+                "error": error.localizedDescription
+            ])
+            recordUntrustedSignedStabilityAsLightning(
+                paymentHashStr: paymentHashStr,
+                amountMsat: amountMsat,
+                ackToken: ackToken
+            )
+            return
+        }
+
+        if registration == .applied {
+            AuditService.log("STABILITY_PAYMENT_REPLAY_IGNORED", data: [
+                "settlement_id": settlementId,
+                "payment_hash": paymentHashStr
+            ])
+            return
+        }
+        if registration == .invalid {
+            return
+        }
+
+        let invalidate = { (reason: String) in
+            try? databaseService.paymentRepo.finishInboundStabilitySettlement(
+                settlementId: settlementId,
+                state: "invalid",
+                reason: reason
+            )
+        }
+
+        guard directionStr == "lsp_to_user" else {
+            invalidate("direction")
+            AuditService.log("STABILITY_PAYMENT_BINDING_INVALID", data: [
+                "settlement_id": settlementId,
+                "payment_hash": paymentHashStr,
+                "reason": "direction"
+            ])
+            recordUntrustedSignedStabilityAsLightning(
+                paymentHashStr: paymentHashStr,
+                amountMsat: amountMsat,
+                ackToken: ackToken
+            )
+            return
+        }
+
+        guard signedAmountMsat == amountMsat else {
+            invalidate("amount")
+            AuditService.log("STABILITY_PAYMENT_AMOUNT_MISMATCH", data: [
+                "settlement_id": settlementId,
+                "payment_hash": paymentHashStr,
+                "signed_amount_msat": "\(signedAmountMsat)",
+                "received_amount_msat": "\(amountMsat)"
+            ])
+            recordUntrustedSignedStabilityAsLightning(
+                paymentHashStr: paymentHashStr,
+                amountMsat: amountMsat,
+                ackToken: ackToken
+            )
+            return
+        }
+
+        guard let receivedAt = try? databaseService.paymentRepo
+            .inboundStabilitySettlementReceivedAt(settlementId: settlementId) else {
+            ackToken?.shouldAck = false
+            return
+        }
+
+        let skew = UInt64(Constants.stabilityPaymentClockSkewSecs)
+        let fresh = createdAt <= receivedAt + skew && receivedAt <= expiresAt + skew
+        guard fresh else {
+            invalidate("expired")
+            AuditService.log("STABILITY_PAYMENT_EXPIRED", data: [
+                "settlement_id": settlementId,
+                "payment_hash": paymentHashStr,
+                "created_at": "\(createdAt)",
+                "expires_at": "\(expiresAt)",
+                "received_at": "\(receivedAt)"
+            ])
+            recordUntrustedSignedStabilityAsLightning(
+                paymentHashStr: paymentHashStr,
+                amountMsat: amountMsat,
+                ackToken: ackToken
+            )
+            return
+        }
+
+        let walletChannelId = stableChannel.channelId
+        guard channelId.lowercased() == walletChannelId.lowercased() else {
+            invalidate("channel")
+            AuditService.log("STABILITY_PAYMENT_CHANNEL_MISMATCH", data: [
+                "settlement_id": settlementId,
+                "payment_hash": paymentHashStr,
+                "signed_channel_id": channelId,
+                "wallet_channel_id": walletChannelId
+            ])
+            recordUntrustedSignedStabilityAsLightning(
+                paymentHashStr: paymentHashStr,
+                amountMsat: amountMsat,
+                ackToken: ackToken
+            )
+            return
+        }
+
+        let signatureValid = nodeService.verifySignature(
+            message: Array(payloadStr.utf8),
+            signature: signature,
+            pubkey: stableChannel.counterparty
+        )
+        guard signatureValid else {
+            invalidate("signature")
+            AuditService.log("STABILITY_PAYMENT_SIGNATURE_INVALID", data: [
+                "settlement_id": settlementId,
+                "payment_hash": paymentHashStr,
+                "channel_id": channelId
+            ])
+            recordUntrustedSignedStabilityAsLightning(
+                paymentHashStr: paymentHashStr,
+                amountMsat: amountMsat,
+                ackToken: ackToken
+            )
+            return
+        }
+
+        let localExpectedUSD = stableChannel.expectedUSD.amount
+        if expectedUsd != localExpectedUSD {
+            AuditService.log("STABILITY_PAYMENT_STATE_DIVERGENCE", data: [
+                "settlement_id": settlementId,
+                "payment_hash": paymentHashStr,
+                "signed_expected_usd": "\(expectedUsd)",
+                "local_expected_usd": "\(localExpectedUSD)"
+            ])
+        }
+
+        let price = stableChannel.latestPrice
+        guard price > 0 else {
+            ackToken?.shouldAck = false
+            AuditService.log("STABILITY_PAYMENT_PRICE_UNAVAILABLE", data: [
+                "settlement_id": settlementId,
+                "payment_hash": paymentHashStr
+            ])
+            return
+        }
+
+        let amountSats = amountMsat / 1000
+        let backingBefore = stableChannel.backingSats
+        let liveReceiverSats = stableChannel.stableReceiverBTC.sats
+
+        let equilibrium = UInt64((localExpectedUSD / price * Double(Constants.satsInBTC)).rounded(.down))
+            .min(liveReceiverSats)
+        let backingAfter: UInt64
+        if backingBefore >= equilibrium {
+            backingAfter = backingBefore
+        } else {
+            backingAfter = min(backingBefore + amountSats, equilibrium)
+        }
+        let nativeAfter = liveReceiverSats >= backingAfter ? (liveReceiverSats - backingAfter) : 0
+
+        let amountUSD = (Double(amountSats) / Double(Constants.satsInBTC)) * price
+
+        do {
+            let persistence = try databaseService.paymentRepo.recordSignedStabilityPaymentAndUpdateAllocation(
+                paymentId: paymentHashStr,
+                settlementId: settlementId,
+                amountMsat: amountMsat,
+                amountUSD: amountUSD,
+                btcPrice: price,
+                userChannelId: stableChannel.userChannelId,
+                backingSatsBefore: backingBefore,
+                backingSatsAfter: backingAfter,
+                nativeSatsAfter: nativeAfter
+            )
+
+            if persistence.isNewPayment {
+                AuditService.log("STABILITY_PAYMENT_RECEIVED", data: [
+                    "settlement_id": settlementId,
+                    "payment_hash": paymentHashStr,
+                    "amount_msat": "\(amountMsat)",
+                    "backing_sats_before": "\(backingBefore)",
+                    "backing_sats_after": "\(backingAfter)"
+                ])
+
+                statusMessage = "Stability payment received: \(amountUSD.usdFormatted)"
+                paymentFlash = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                    self?.paymentFlash = false
+                }
+            }
+
+            refreshBalances()
+            updateStableBalances()
+
+            stableChannel.backingSats = backingAfter
+            stableChannel.nativeSats = nativeAfter
+
+            StabilityService.reconcileIncoming(&stableChannel)
+            saveChannelToDB(preserveBacking: true)
+
+        } catch {
+            ackToken?.shouldAck = false
+            AuditService.log("STABILITY_PAYMENT_PERSIST_FAILED", data: [
+                "settlement_id": settlementId,
+                "payment_hash": paymentHashStr,
+                "error": error.localizedDescription
+            ])
         }
     }
 
@@ -2106,6 +2481,60 @@ class AppState {
         }
     }
 
+    private func generateSettlementId() -> String {
+        var bytes = [UInt8](repeating: 0, count: 32)
+        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        return bytes.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func buildSignedStabilityEnvelope(
+        settlementId: String,
+        channelId: String,
+        amountMsat: UInt64,
+        direction: String,
+        expectedUsd: Double,
+        createdAt: UInt64,
+        expiresAt: UInt64
+    ) throws -> Data {
+        let payload: [String: Any] = [
+            "type": Constants.stabilityPaymentMessageType,
+            "settlement_id": settlementId,
+            "channel_id": channelId.lowercased(),
+            "amount_msat": amountMsat,
+            "direction": direction,
+            "expected_usd": expectedUsd,
+            "created_at": createdAt,
+            "expires_at": expiresAt
+        ]
+
+        guard let payloadData = try? JSONSerialization.data(withJSONObject: payload),
+              let payloadStr = String(data: payloadData, encoding: .utf8) else {
+            throw NSError(
+                domain: "StableChannels",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to serialize payload"]
+            )
+        }
+
+        let signature = try nodeService.signMessage(Array(payloadStr.utf8))
+
+        let envelope: [String: Any] = [
+            "payload": payloadStr,
+            "signature": signature
+        ]
+
+        guard let envelopeData = try? JSONSerialization.data(withJSONObject: envelope),
+              let envelopeStr = String(data: envelopeData, encoding: .utf8) else {
+            throw NSError(
+                domain: "StableChannels",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to serialize envelope"]
+            )
+        }
+
+        return Data(envelopeStr.utf8)
+    }
+
     private func runStabilityCheck() {
         guard reconcilePendingOutgoingStabilityPayment() else { return }
 
@@ -2145,14 +2574,27 @@ class AppState {
 
         // Send stability payment
         let paymentId: PaymentId
+        let settlementId = generateSettlementId()
+        let createdAt = UInt64(Date().timeIntervalSince1970)
+        let expiresAt = createdAt + UInt64(Constants.stabilityPaymentAuthTTLSecs)
         do {
-            // Tag with the STABLE_CHANNEL_TLV [0x01] marker so the LSP classifies
-            // this as a settlement (operator GUI) and runs reconcile_incoming_stability
-            // immediately, matching every other sender. See issue #161.
+            let envelopeData = try buildSignedStabilityEnvelope(
+                settlementId: settlementId,
+                channelId: stableChannel.channelId,
+                amountMsat: amountMsat,
+                direction: "user_to_lsp",
+                expectedUsd: stableChannel.expectedUSD.amount,
+                createdAt: createdAt,
+                expiresAt: expiresAt
+            )
+
+            let marker = CustomTlvRecord(typeNum: Constants.stableChannelTLVType, value: Data([1]))
+            let signedRecord = CustomTlvRecord(typeNum: Constants.signedStabilityTLVType, value: envelopeData)
+
             paymentId = try nodeService.sendKeysendWithTLV(
                 amountMsat: amountMsat,
                 to: stableChannel.counterparty,
-                tlvs: [CustomTlvRecord(typeNum: Constants.stableChannelTLVType, value: Data([1]))]
+                tlvs: [marker, signedRecord]
             )
         } catch {
             databaseService.stabilityRepo.clearPendingSend()

@@ -23,6 +23,35 @@ protocol PaymentDatabase {
     func loadPendingSend() -> PendingOutgoingStabilityPayment?
     func clearPendingSend()
     func reconcilePendingOutgoingPayment(node: LDKNode.Node) -> Bool
+
+    func registerInboundStabilitySettlement(
+        settlementId: String,
+        paymentId: String,
+        channelId: String,
+        amountMsat: UInt64,
+        direction: String,
+        envelope: String
+    ) -> InboundStabilityRegistration?
+
+    func finishInboundStabilitySettlement(
+        settlementId: String,
+        state: String,
+        reason: String?
+    ) -> Bool
+
+    func inboundStabilitySettlementReceivedAt(settlementId: String) -> UInt64?
+
+    func recordSignedStabilityPaymentAndUpdateAllocation(
+        paymentId: String,
+        settlementId: String,
+        amountMsat: UInt64,
+        amountUSD: Double?,
+        btcPrice: Double?,
+        userChannelId: String,
+        backingSatsBefore: UInt64,
+        backingSatsAfter: UInt64,
+        nativeSatsAfter: UInt64
+    ) -> PaymentInsertResult
 }
 
 /// Result of recording a payment
@@ -31,6 +60,13 @@ enum PaymentInsertResult {
     case duplicate
     case failed
     case missingChannelRow
+}
+
+enum InboundStabilityRegistration: String {
+    case new
+    case pending
+    case applied
+    case invalid
 }
 
 /// Pending outgoing stability payment marker
@@ -49,4 +85,5 @@ struct ChannelState {
     let receiverSats: UInt64
     let latestPrice: Double
     let userChannelId: String
+    let channelId: String
 }

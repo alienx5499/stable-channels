@@ -183,6 +183,21 @@ final class DatabaseService {
                 timestamp INTEGER NOT NULL
             )
             """,
+            """
+            CREATE TABLE IF NOT EXISTS inbound_stability_settlements (
+                settlement_id TEXT PRIMARY KEY,
+                payment_id TEXT NOT NULL UNIQUE,
+                channel_id TEXT NOT NULL,
+                amount_msat INTEGER NOT NULL,
+                direction TEXT NOT NULL,
+                envelope TEXT NOT NULL,
+                state TEXT NOT NULL DEFAULT 'pending',
+                reason TEXT,
+                created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+                updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_inbound_stability_settlements_state ON inbound_stability_settlements(state, updated_at)",
             "CREATE INDEX IF NOT EXISTS idx_price_history_timestamp ON price_history(timestamp DESC)",
             "CREATE INDEX IF NOT EXISTS idx_pending_operations_status ON pending_operations(status)",
             "CREATE INDEX IF NOT EXISTS idx_payments_created ON payments(created_at DESC)",
