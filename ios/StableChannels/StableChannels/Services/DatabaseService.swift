@@ -228,6 +228,9 @@ final class DatabaseService {
         if !colNames.contains("native_sats") {
             try rawSQL.execute("ALTER TABLE channels ADD COLUMN native_sats INTEGER NOT NULL DEFAULT 0")
         }
+        if !colNames.contains("sync_version") {
+            try rawSQL.execute("ALTER TABLE channels ADD COLUMN sync_version INTEGER NOT NULL DEFAULT 0")
+        }
 
         // Migrate: add tx_block_height to payments if missing (on-chain confirmation tracking)
         let paymentsCols = try rawSQL.query("PRAGMA table_info(payments)")

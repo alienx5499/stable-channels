@@ -81,6 +81,7 @@ struct StableChannel: Codable {
     var backingSats: UInt64
     var nativeSats: UInt64
     var lastStabilityPayment: Int64
+    var syncVersion: UInt64
 
     static let `default` = StableChannel(
         channelId: "",
@@ -106,6 +107,7 @@ struct StableChannel: Codable {
         nativeChannelBTC: .zero,
         backingSats: 0,
         nativeSats: 0,
-        lastStabilityPayment: 0
+        lastStabilityPayment: 0,
+        syncVersion: 0
     )
 }

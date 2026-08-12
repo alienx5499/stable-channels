@@ -327,4 +327,28 @@ final class StabilityServiceTests: XCTestCase {
         let result = StabilityService.checkStabilityAction(sc, price: 100_000.0)
         XCTAssertEqual(result.action, .stable)
     }
+
+    // MARK: - tradeBackingAfterDelta & Drift Preservation
+
+    func testTradeBackingAfterDeltaPreservesDrift() {
+        let backing = StabilityService.tradeBackingAfterDelta(
+            receiverSats: 20_000,
+            currentBackingSats: 10_300,
+            currentExpectedUSD: 10.0,
+            newExpectedUSD: 20.0,
+            price: 100_000.0
+        )
+        XCTAssertEqual(backing, 20_300)
+    }
+
+    func testTradeBackingAfterDeltaSubCentExit() {
+        let backing = StabilityService.tradeBackingAfterDelta(
+            receiverSats: 10_000,
+            currentBackingSats: 500,
+            currentExpectedUSD: 1.0,
+            newExpectedUSD: 0.005,
+            price: 100_000.0
+        )
+        XCTAssertEqual(backing, 0)
+    }
 }

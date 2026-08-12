@@ -94,6 +94,126 @@ enum StabilityService {
         recomputeNative(&sc)
     }
 
+    // MARK: - Trade Delta & Backing Allocation
+
+    /// Treat sub-cent targets as a full exit throughout trade processing.
+    static func normalizeTradeExpectedUSD(_ expectedUSD: Double) -> Double {
+        if expectedUSD.isFinite && expectedUSD >= 0.0 && expectedUSD < 0.01 {
+            return 0.0
+        }
+        return expectedUSD
+    }
+
+    /// Absorb sub-cent native residue into the stable position for full BTC-to-USD trades.
+    static func normalizeBackingSats(
+        receiverSats: UInt64,
+        backingSats: UInt64,
+        expectedUSD: Double,
+        price: Double
+    ) -> UInt64 {
+        guard receiverSats > 0,
+              backingSats <= receiverSats,
+              expectedUSD > 0.0,
+              price.isFinite,
+              price > 0.0 else {
+            return backingSats
+        }
+
+        let nativeSats = receiverSats - backingSats
+        let nativeUSD = Double(nativeSats) / Double(Constants.satsInBTC) * price
+        if nativeUSD < 0.01 {
+            return receiverSats
+        }
+        return backingSats
+    }
+
+    /// Determine whether allocation drift exceeds stability payment thresholds.
+    static func allocationDriftIsActionable(
+        backingSats: UInt64,
+        expectedUSD: Double,
+        price: Double
+    ) -> Bool {
+        let currentValue = Double(backingSats) / Double(Constants.satsInBTC) * price
+        let driftUSD = abs(currentValue - expectedUSD)
+        if expectedUSD < 0.01 {
+            return driftUSD >= Constants.stabilityThresholdUSD
+        }
+        let driftPercent = (driftUSD / expectedUSD) * 100.0
+        return driftUSD >= Constants.stabilityThresholdUSD && driftPercent >= Constants.stabilityThresholdPercent
+    }
+
+    /// Derive backing sats after applying a trade target delta, preserving existing stability drift.
+    /// Direct port of src/stable.rs trade_backing_after_delta()
+    static func tradeBackingAfterDelta(
+        receiverSats: UInt64,
+        currentBackingSats: UInt64,
+        currentExpectedUSD: Double,
+        newExpectedUSD: Double,
+        price: Double
+    ) -> UInt64? {
+        let normNewExpectedUSD = normalizeTradeExpectedUSD(newExpectedUSD)
+        guard currentExpectedUSD.isFinite, currentExpectedUSD >= 0.0,
+              normNewExpectedUSD.isFinite, normNewExpectedUSD >= 0.0,
+              price.isFinite, price > 0.0 else {
+            return nil
+        }
+
+        let receiverUSD = Double(receiverSats) / Double(Constants.satsInBTC) * price
+        if normNewExpectedUSD > receiverUSD {
+            return nil
+        }
+
+        if normNewExpectedUSD == 0.0 {
+            let actionable = allocationDriftIsActionable(
+                backingSats: currentBackingSats,
+                expectedUSD: currentExpectedUSD,
+                price: price
+            )
+            return actionable ? nil : 0
+        }
+
+        let currentTargetSatsF = currentExpectedUSD / price * Double(Constants.satsInBTC)
+        let newTargetSatsF = normNewExpectedUSD / price * Double(Constants.satsInBTC)
+        guard currentTargetSatsF.isFinite, newTargetSatsF.isFinite,
+              currentTargetSatsF < Double(UInt64.max),
+              newTargetSatsF < Double(UInt64.max) else {
+            return nil
+        }
+
+        let currentTargetSats = UInt64(floor(currentTargetSatsF))
+        let newTargetSats = UInt64(floor(newTargetSatsF))
+
+        var backingSats: UInt64
+        if normNewExpectedUSD >= currentExpectedUSD {
+            let targetDiff = newTargetSats >= currentTargetSats ? newTargetSats - currentTargetSats : 0
+            guard let added = currentBackingSats.addingReportingOverflow(targetDiff)
+                .overflow ? nil : currentBackingSats + targetDiff else {
+                return nil
+            }
+            backingSats = added
+        } else {
+            let targetDiff = currentTargetSats >= newTargetSats ? currentTargetSats - newTargetSats : 0
+            guard currentBackingSats >= targetDiff else {
+                return nil
+            }
+            backingSats = currentBackingSats - targetDiff
+        }
+
+        if currentExpectedUSD < 0.01 && currentBackingSats == 0 {
+            backingSats = normalizeBackingSats(
+                receiverSats: receiverSats,
+                backingSats: backingSats,
+                expectedUSD: normNewExpectedUSD,
+                price: price
+            )
+        }
+
+        if backingSats > 0 && backingSats <= receiverSats {
+            return backingSats
+        }
+        return nil
+    }
+
     // MARK: - Trade Outcome
 
     enum TradeOutcome {
@@ -102,48 +222,31 @@ enum StabilityService {
         case rejectedAbovePar
     }
 
-    /// Apply a trade - set new expected USD and recalculate backing sats + native sats.
-    /// Returns false if the target cannot preserve existing stability drift or exceeds
-    /// the receiver's locally-valued balance, leaving channel state untouched.
+    /// Apply a trade - apply target delta at local price, preserving existing stability drift.
     static func applyTrade(_ sc: inout StableChannel, newExpectedUSD: Double, price: Double) -> TradeOutcome {
-        // Ceiling: never allow a target above the locally-valued receiver balance.
-        // The stability threshold is a payment deadband, not extra trade capacity.
+        let normNewExpectedUSD = normalizeTradeExpectedUSD(newExpectedUSD)
+        let receiverSats = sc.stableReceiverBTC.sats
+
         if price > 0.0 {
-            let receiverSats = sc.stableReceiverBTC.sats
             let receiverValueUSD = Double(receiverSats) / Double(Constants.satsInBTC) * price
-            if newExpectedUSD > receiverValueUSD {
+            if normNewExpectedUSD > receiverValueUSD {
                 return .rejectedAbovePar
             }
         }
 
-        let currentBacking = sc.backingSats
-        let receiverSats = sc.stableReceiverBTC.sats
-
-        if price > 0.0 {
-            sc.expectedUSD = USD(amount: newExpectedUSD)
-            let newBacking = UInt64((newExpectedUSD / price * Double(Constants.satsInBTC)).rounded(.down))
-                .min(receiverSats)
-            let newNative = receiverSats >= newBacking ? receiverSats - newBacking : 0
-
-            // Drift preservation: if the new backing would lose sats the drift
-            // model assigned to the receiver, reject the trade rather than
-            // silently zeroing the difference.
-            let backingLoss = currentBacking > newBacking ? currentBacking - newBacking : 0
-            let receiverDrift = receiverSats > currentBacking ? receiverSats - currentBacking : 0
-            if backingLoss > 0 && receiverDrift > 0 && backingLoss > receiverDrift {
-                sc.expectedUSD = USD(amount: sc.expectedUSD.amount)
-                sc.backingSats = currentBacking
-                sc.nativeSats = receiverSats >= currentBacking ? receiverSats - currentBacking : 0
-                return .rejectedDriftLoss
-            }
-
-            sc.backingSats = newBacking
-            sc.nativeSats = newNative
-        } else {
-            sc.backingSats = currentBacking
+        guard let backingSats = tradeBackingAfterDelta(
+            receiverSats: receiverSats,
+            currentBackingSats: sc.backingSats,
+            currentExpectedUSD: sc.expectedUSD.amount,
+            newExpectedUSD: normNewExpectedUSD,
+            price: price
+        ) else {
+            return .rejectedDriftLoss
         }
 
-        // native_sats is everything NOT backing the stable position
+        sc.expectedUSD = USD(amount: normNewExpectedUSD)
+        sc.backingSats = backingSats
+        sc.nativeSats = receiverSats >= backingSats ? receiverSats - backingSats : 0
         recomputeNative(&sc)
 
         return .applied

@@ -49,6 +49,7 @@ struct ChannelRecord: Codable {
     let nativeSats: UInt64
     let receiverSats: UInt64
     let latestPrice: Double
+    let syncVersion: UInt64
 }
 
 struct TradeRecord: Codable, Identifiable {

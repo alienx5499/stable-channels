@@ -16,24 +16,28 @@ final class ChannelRepository {
         nativeSats: UInt64 = 0,
         note: String?,
         receiverSats: UInt64 = 0,
-        latestPrice: Double = 0.0
+        latestPrice: Double = 0.0,
+        syncVersion: UInt64 = 0
     ) throws {
         let updateSQL = """
             UPDATE channels SET channel_id = ?, expected_usd = ?, stable_sats = ?,
-                native_sats = ?, note = ?, receiver_sats = ?, latest_price = ?, updated_at = strftime('%s', 'now')
+                native_sats = ?, note = ?, receiver_sats = ?, latest_price = ?,
+                sync_version = CASE WHEN ? > 0 THEN ? ELSE sync_version END,
+                updated_at = strftime('%s', 'now')
             WHERE user_channel_id = ?
         """
         try rawSQL.execute(updateSQL, params: [
             .text(channelId), .real(expectedUSD), .integer(Int64(backingSats)),
             .integer(Int64(nativeSats)),
             note.map { .text($0) } ?? .null, .integer(Int64(receiverSats)), .real(latestPrice),
+            .integer(Int64(syncVersion)), .integer(Int64(syncVersion)),
             .text(userChannelId)
         ])
 
         if rawSQL.changes == 0 {
             let insertSQL = """
-                INSERT INTO channels (channel_id, user_channel_id, expected_usd, stable_sats, native_sats, note, receiver_sats, latest_price)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO channels (channel_id, user_channel_id, expected_usd, stable_sats, native_sats, note, receiver_sats, latest_price, sync_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(channel_id) DO UPDATE SET
                     user_channel_id = excluded.user_channel_id,
                     expected_usd = excluded.expected_usd,
@@ -42,13 +46,15 @@ final class ChannelRepository {
                     note = excluded.note,
                     receiver_sats = excluded.receiver_sats,
                     latest_price = excluded.latest_price,
+                    sync_version = CASE WHEN excluded.sync_version > 0 THEN excluded.sync_version ELSE channels.sync_version END,
                     updated_at = strftime('%s', 'now')
             """
             try rawSQL.execute(insertSQL, params: [
                 .text(channelId), .text(userChannelId), .real(expectedUSD),
                 .integer(Int64(backingSats)), .integer(Int64(nativeSats)),
                 note.map { .text($0) } ?? .null,
-                .integer(Int64(receiverSats)), .real(latestPrice)
+                .integer(Int64(receiverSats)), .real(latestPrice),
+                .integer(Int64(syncVersion))
             ])
         }
     }
@@ -85,12 +91,12 @@ final class ChannelRepository {
         let sql: String
         let params: [SQLValue]
         if let id = userChannelId, !id.isEmpty {
-            sql = "SELECT channel_id, expected_usd, note, stable_sats, user_channel_id, receiver_sats, latest_price, native_sats FROM channels WHERE user_channel_id = ?"
+            sql = "SELECT channel_id, expected_usd, note, stable_sats, user_channel_id, receiver_sats, latest_price, native_sats, sync_version FROM channels WHERE user_channel_id = ?"
             params = [.text(id)]
         } else {
             sql = """
                 SELECT channel_id, expected_usd, note, stable_sats, user_channel_id,
-                       receiver_sats, latest_price, native_sats
+                       receiver_sats, latest_price, native_sats, sync_version
                 FROM channels
                 ORDER BY updated_at DESC, channel_id DESC
                 LIMIT 1
@@ -108,7 +114,8 @@ final class ChannelRepository {
             backingSats: row.uInt64(3),
             nativeSats: row.uInt64(7),
             receiverSats: row.uInt64(5),
-            latestPrice: row.double(6)
+            latestPrice: row.double(6),
+            syncVersion: row.optUInt64(8) ?? 0
         )
     }
 

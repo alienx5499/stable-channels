@@ -1886,14 +1886,33 @@ class AppState {
                 continue
             }
 
-            // Log sync_version for replay-protection audit trail
+            // Monotonic sync_version check
             if parsed.syncVersion > 0 {
                 AuditService.log("SYNC_V1_VERSION", data: [
                     "sync_version": "\(parsed.syncVersion)",
                     "backing_sats": "\(parsed.backingSats)",
                     "payment_hash": paymentHash
                 ])
+                if parsed.syncVersion <= stableChannel.syncVersion {
+                    AuditService.log("SYNC_V1_REJECTED", data: [
+                        "reason": "stale_sync_version",
+                        "incoming_version": "\(parsed.syncVersion)",
+                        "current_version": "\(stableChannel.syncVersion)",
+                        "payment_hash": paymentHash
+                    ])
+                    continue
+                }
             }
+
+            // Peer backing audit validation — log alert if counterparty backing differs from local derived backing
+            if parsed.backingSats > 0 && parsed.backingSats != stableChannel.backingSats {
+                AuditService.log("SYNC_V1_BACKING_MISMATCH", data: [
+                    "signed_backing_sats": "\(parsed.backingSats)",
+                    "local_backing_sats": "\(stableChannel.backingSats)",
+                    "payment_hash": paymentHash
+                ])
+            }
+
             let oldExpected = stableChannel.expectedUSD.amount
             let price = stableChannel.latestPrice
             let outcome = StabilityService.applyTrade(&stableChannel, newExpectedUSD: parsed.expectedUSD, price: price)
@@ -1905,6 +1924,11 @@ class AppState {
                     "btc_price": "\(price)",
                     "payment_hash": paymentHash
                 ])
+                return false
+            }
+
+            if parsed.syncVersion > 0 {
+                stableChannel.syncVersion = parsed.syncVersion
             }
             saveChannelToDB()
 
@@ -3154,7 +3178,8 @@ class AppState {
                     nativeSats: stableChannel.nativeSats,
                     note: stableChannel.note,
                     receiverSats: stableChannel.stableReceiverBTC.sats,
-                    latestPrice: stableChannel.latestPrice
+                    latestPrice: stableChannel.latestPrice,
+                    syncVersion: stableChannel.syncVersion
                 )
             }
         } catch {
@@ -3172,6 +3197,7 @@ class AppState {
                 stableChannel.expectedUSD = USD(amount: record.expectedUSD)
                 stableChannel.backingSats = record.backingSats
                 stableChannel.nativeSats = record.nativeSats
+                stableChannel.syncVersion = record.syncVersion
                 stableChannel.note = record.note
 
                 // Restore the counterparty from the same channel identity used to load this record.

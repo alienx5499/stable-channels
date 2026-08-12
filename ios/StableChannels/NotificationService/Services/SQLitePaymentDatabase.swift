@@ -197,7 +197,7 @@ final class SQLitePaymentDatabase: PaymentDatabase {
 
         var stmt: OpaquePointer?
         let sql = """
-        SELECT expected_usd, stable_sats, receiver_sats, latest_price, native_sats, user_channel_id, channel_id
+        SELECT expected_usd, stable_sats, receiver_sats, latest_price, native_sats, user_channel_id, channel_id, sync_version
         FROM channels
         WHERE user_channel_id IS NOT NULL AND user_channel_id != ''
         ORDER BY updated_at DESC, channel_id DESC
@@ -215,7 +215,8 @@ final class SQLitePaymentDatabase: PaymentDatabase {
             receiverSats: UInt64(sqlite3_column_int64(stmt, 2)),
             latestPrice: sqlite3_column_double(stmt, 3),
             userChannelId: sqlite3_column_text(stmt, 5).map { String(cString: $0) } ?? "",
-            channelId: sqlite3_column_text(stmt, 6).map { String(cString: $0) } ?? ""
+            channelId: sqlite3_column_text(stmt, 6).map { String(cString: $0) } ?? "",
+            syncVersion: UInt64(sqlite3_column_int64(stmt, 7))
         )
     }
 
@@ -223,7 +224,12 @@ final class SQLitePaymentDatabase: PaymentDatabase {
         readChannelState()?.userChannelId
     }
 
-    func applySyncMessage(expectedUSD: Double, payloadUserChannelId: String?, priceFetcher: PriceFetcher) -> Bool {
+    func applySyncMessage(
+        expectedUSD: Double,
+        payloadUserChannelId: String?,
+        syncVersion: UInt64?,
+        priceFetcher: PriceFetcher
+    ) -> Bool {
         let ucid: String
         if let payloadUserChannelId, !payloadUserChannelId.isEmpty {
             ucid = payloadUserChannelId
@@ -240,7 +246,7 @@ final class SQLitePaymentDatabase: PaymentDatabase {
 
         // Read current state
         var selectStmt: OpaquePointer?
-        let selectSql = "SELECT stable_sats, receiver_sats, latest_price FROM channels WHERE user_channel_id = ?"
+        let selectSql = "SELECT expected_usd, stable_sats, receiver_sats, latest_price, sync_version FROM channels WHERE user_channel_id = ?"
         guard sqlite3_prepare_v2(db, selectSql, -1, &selectStmt, nil) == SQLITE_OK else {
             sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
             return false
@@ -257,31 +263,46 @@ final class SQLitePaymentDatabase: PaymentDatabase {
             sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
             return false
         }
-        let currentBacking = UInt64(sqlite3_column_int64(selectStmt, 0))
-        let receiverSats = UInt64(sqlite3_column_int64(selectStmt, 1))
-        let price = sqlite3_column_double(selectStmt, 2)
+        let currentExpectedUSD = sqlite3_column_double(selectStmt, 0)
+        let currentBacking = UInt64(sqlite3_column_int64(selectStmt, 1))
+        let receiverSats = UInt64(sqlite3_column_int64(selectStmt, 2))
+        let price = sqlite3_column_double(selectStmt, 3)
+        let currentSyncVersion = UInt64(sqlite3_column_int64(selectStmt, 4))
         sqlite3_finalize(selectStmt)
 
-        // Calculate new backing
+        // Monotonic version enforcement: reject stale or duplicate versions
+        if let newSyncVersion = syncVersion, newSyncVersion > 0 {
+            guard newSyncVersion > currentSyncVersion else {
+                sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
+                return false
+            }
+        }
+
         var finalPrice = price
         if finalPrice <= 0 {
             finalPrice = priceFetcher.fetchPrice()
         }
 
-        let newBacking: UInt64
-        if finalPrice > 0 {
-            newBacking = UInt64(max(0.0, expectedUSD / finalPrice * Self.satsInBTC))
-        } else {
-            newBacking = currentBacking
+        guard let newBacking = StabilityService.tradeBackingAfterDelta(
+            receiverSats: receiverSats,
+            currentBackingSats: currentBacking,
+            currentExpectedUSD: currentExpectedUSD,
+            newExpectedUSD: expectedUSD,
+            price: finalPrice
+        ) else {
+            sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
+            return false
         }
+
         let newNative = receiverSats >= newBacking ? receiverSats - newBacking : 0
+        let nextSyncVersion = syncVersion ?? (currentSyncVersion + 1)
 
         // Update
         var updateStmt: OpaquePointer?
         let updateSql = """
         UPDATE channels
-        SET expected_usd = ?, stable_sats = ?, native_sats = ?, latest_price = ?, updated_at = strftime('%s', 'now')
-        WHERE user_channel_id = ?
+        SET expected_usd = ?, stable_sats = ?, native_sats = ?, latest_price = ?, sync_version = ?, updated_at = strftime('%s', 'now')
+        WHERE user_channel_id = ? AND sync_version < ?
         """
         guard sqlite3_prepare_v2(db, updateSql, -1, &updateStmt, nil) == SQLITE_OK else {
             sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
@@ -293,21 +314,24 @@ final class SQLitePaymentDatabase: PaymentDatabase {
         sqlite3_bind_int64(updateStmt, 2, Int64(newBacking))
         sqlite3_bind_int64(updateStmt, 3, Int64(newNative))
         sqlite3_bind_double(updateStmt, 4, finalPrice)
+        sqlite3_bind_int64(updateStmt, 5, Int64(nextSyncVersion))
         sqlite3_bind_text(
             updateStmt,
-            5,
+            6,
             (ucid as NSString).utf8String,
             -1,
             SQLITE_TRANSIENT
         )
+        sqlite3_bind_int64(updateStmt, 7, Int64(nextSyncVersion))
 
-        guard sqlite3_step(updateStmt) == SQLITE_DONE, sqlite3_changes(db) == 1 else {
+        let stepResult = sqlite3_step(updateStmt)
+        if stepResult == SQLITE_DONE && sqlite3_changes(db) > 0 {
+            sqlite3_exec(db, "COMMIT", nil, nil, nil)
+            return true
+        } else {
             sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
             return false
         }
-
-        guard sqlite3_exec(db, "COMMIT", nil, nil, nil) == SQLITE_OK else { return false }
-        return true
     }
 
     // MARK: - Pending Send Operations

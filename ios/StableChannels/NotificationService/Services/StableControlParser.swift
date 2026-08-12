@@ -1,5 +1,4 @@
 import Foundation
-import UserNotifications
 import LDKNode
 
 enum StableControlResult {
