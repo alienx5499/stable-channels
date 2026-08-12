@@ -20,6 +20,7 @@ final class DatabaseService {
     let onchainRepo: OnchainReceiveRepository
     let priceRepo: PriceRepository
     let headerRepo: HeaderRepository
+    let settlementRepo: InboundSettlementRepository
 
     init(dataDir: URL) throws {
         try? FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
@@ -46,6 +47,7 @@ final class DatabaseService {
         self.onchainRepo = OnchainReceiveRepository(rawSQL: sqlHelper)
         self.priceRepo = PriceRepository(rawSQL: sqlHelper)
         self.headerRepo = HeaderRepository(rawSQL: sqlHelper)
+        self.settlementRepo = InboundSettlementRepository(rawSQL: sqlHelper)
 
         sqlHelper.getDB = { [weak self] in self?.db }
 

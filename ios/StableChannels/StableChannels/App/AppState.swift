@@ -1642,7 +1642,7 @@ class AppState {
 
         let registration: InboundStabilityRegistration
         do {
-            registration = try databaseService.paymentRepo.registerInboundStabilitySettlement(
+            registration = try databaseService.settlementRepo.registerInboundStabilitySettlement(
                 settlementId: settlementId,
                 paymentId: paymentHashStr,
                 channelId: channelId,
@@ -1676,7 +1676,7 @@ class AppState {
         }
 
         let invalidate = { (reason: String) in
-            try? databaseService.paymentRepo.finishInboundStabilitySettlement(
+            try? databaseService.settlementRepo.finishInboundStabilitySettlement(
                 settlementId: settlementId,
                 state: "invalid",
                 reason: reason
@@ -1714,7 +1714,7 @@ class AppState {
             return
         }
 
-        guard let receivedAt = try? databaseService.paymentRepo
+        guard let receivedAt = try? databaseService.settlementRepo
             .inboundStabilitySettlementReceivedAt(settlementId: settlementId) else {
             ackToken?.shouldAck = false
             return
@@ -1813,7 +1813,7 @@ class AppState {
         let amountUSD = (Double(amountSats) / Double(Constants.satsInBTC)) * price
 
         do {
-            let persistence = try databaseService.paymentRepo.recordSignedStabilityPaymentAndUpdateAllocation(
+            let persistence = try databaseService.settlementRepo.recordSignedStabilityPaymentAndUpdateAllocation(
                 paymentId: paymentHashStr,
                 settlementId: settlementId,
                 amountMsat: amountMsat,

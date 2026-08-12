@@ -40,6 +40,11 @@
 		498244AA3022712F0086BDB6 /* BiometricProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498244A83022712F0086BDB6 /* BiometricProtocols.swift */; };
 		498244AB3022712F0086BDB6 /* BiometricToggleCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498244A93022712F0086BDB6 /* BiometricToggleCoordinator.swift */; };
 		4983BC9B2FCCA2B800E3B378 /* ShareableQRGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4983BC9A2FCCA2B800E3B378 /* ShareableQRGenerator.swift */; };
+		498790B3302CFF9900479903 /* InboundSettlementRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498790B2302CFF9900479903 /* InboundSettlementRepository.swift */; };
+		498790B9302CFFD700479903 /* StabilityChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498790B6302CFFD700479903 /* StabilityChecker.swift */; };
+		498790BA302CFFD700479903 /* BalanceUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498790B5302CFFD700479903 /* BalanceUpdater.swift */; };
+		498790BB302CFFD700479903 /* StabilityReconciler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498790B7302CFFD700479903 /* StabilityReconciler.swift */; };
+		498790BC302CFFD700479903 /* TradeAllocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498790B8302CFFD700479903 /* TradeAllocator.swift */; };
 		499127782FFEB4FB00D9C81F /* PaymentDirection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499127772FFEB4FB00D9C81F /* PaymentDirection.swift */; };
 		499127802FFEB50B00D9C81F /* IncomingPaymentHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499127792FFEB50B00D9C81F /* IncomingPaymentHandler.swift */; };
 		499127812FFEB50B00D9C81F /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4991277A2FFEB50B00D9C81F /* Logger.swift */; };
@@ -209,6 +214,11 @@
 		498244A83022712F0086BDB6 /* BiometricProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricProtocols.swift; sourceTree = "<group>"; };
 		498244A93022712F0086BDB6 /* BiometricToggleCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricToggleCoordinator.swift; sourceTree = "<group>"; };
 		4983BC9A2FCCA2B800E3B378 /* ShareableQRGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareableQRGenerator.swift; sourceTree = "<group>"; };
+		498790B2302CFF9900479903 /* InboundSettlementRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboundSettlementRepository.swift; sourceTree = "<group>"; };
+		498790B5302CFFD700479903 /* BalanceUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceUpdater.swift; sourceTree = "<group>"; };
+		498790B6302CFFD700479903 /* StabilityChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StabilityChecker.swift; sourceTree = "<group>"; };
+		498790B7302CFFD700479903 /* StabilityReconciler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StabilityReconciler.swift; sourceTree = "<group>"; };
+		498790B8302CFFD700479903 /* TradeAllocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TradeAllocator.swift; sourceTree = "<group>"; };
 		499127772FFEB4FB00D9C81F /* PaymentDirection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentDirection.swift; sourceTree = "<group>"; };
 		499127792FFEB50B00D9C81F /* IncomingPaymentHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomingPaymentHandler.swift; sourceTree = "<group>"; };
 		4991277A2FFEB50B00D9C81F /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
@@ -416,6 +426,17 @@
 			path = Biometric;
 			sourceTree = "<group>";
 		};
+		498790B4302CFFA100479903 /* Stability */ = {
+			isa = PBXGroup;
+			children = (
+				498790B5302CFFD700479903 /* BalanceUpdater.swift */,
+				498790B6302CFFD700479903 /* StabilityChecker.swift */,
+				498790B7302CFFD700479903 /* StabilityReconciler.swift */,
+				498790B8302CFFD700479903 /* TradeAllocator.swift */,
+			);
+			path = Stability;
+			sourceTree = "<group>";
+		};
 		499127742FFEB4BF00D9C81F /* Services */ = {
 			isa = PBXGroup;
 			children = (
@@ -507,6 +528,8 @@
 			isa = PBXGroup;
 			children = (
 				49DDB0022FF0000200000001 /* ChannelRepository.swift */,
+				49DDB0092FF0000200000001 /* HeaderRepository.swift */,
+				498790B2302CFF9900479903 /* InboundSettlementRepository.swift */,
 				49DDB0012FF0000200000001 /* Models.swift */,
 				49DDB0042FF0000200000001 /* OnchainReceiveRepository.swift */,
 				49DDB0032FF0000200000001 /* PaymentRepository.swift */,
@@ -514,7 +537,6 @@
 				49DDB0052FF0000200000001 /* PriceRepository.swift */,
 				49DDB0062FF0000200000001 /* SpliceRepository.swift */,
 				49DDB0072FF0000200000001 /* StabilitySendRepository.swift */,
-				49DDB0092FF0000200000001 /* HeaderRepository.swift */,
 			);
 			path = Repositories;
 			sourceTree = "<group>";
@@ -583,8 +605,8 @@
 			isa = PBXGroup;
 			children = (
 				CC3C25041B1DA315BD7CD2E7 /* AuditService.swift */,
-				49E4D8A22FED84B7002AF338 /* BackupServiceProtocol.swift */,
 				49E4D8A02FED848F002AF338 /* BackupError.swift */,
+				49E4D8A22FED84B7002AF338 /* BackupServiceProtocol.swift */,
 				49D4DB052FD02F400074ACD2 /* CloseTxidResolver.swift */,
 				5194C003A28A4B2941C7AC40 /* CloudBackupService.swift */,
 				CB7BB840EC5C451056C5C21D /* CryptoService.swift */,
@@ -608,6 +630,7 @@
 				498244AC3022718B0086BDB6 /* Biometric */,
 				495CB4023017AD1800560837 /* Confirmation */,
 				49DDB0002FF0000000000001 /* Repositories */,
+				498790B4302CFFA100479903 /* Stability */,
 				495CB4013017917400560837 /* WebSocket */,
 			);
 			path = Services;
@@ -929,6 +952,10 @@
 				49D9C2E22FB6E52E00133509 /* BiometricService.swift in Sources */,
 				06C3B1697681F176DD44C146 /* StableChannelsApp.swift in Sources */,
 				49F0B0DE2FC0EF3A003A3B89 /* BackupSettingsView.swift in Sources */,
+				498790B9302CFFD700479903 /* StabilityChecker.swift in Sources */,
+				498790BA302CFFD700479903 /* BalanceUpdater.swift in Sources */,
+				498790BB302CFFD700479903 /* StabilityReconciler.swift in Sources */,
+				498790BC302CFFD700479903 /* TradeAllocator.swift in Sources */,
 				499DBE7B2FD2F06F003E89F9 /* TxidLinkStore.swift in Sources */,
 				499DBE7C2FD2F06F003E89F9 /* DepositRecorder.swift in Sources */,
 				49F0B0DF2FC0EF3A003A3B89 /* ChannelSettingsView.swift in Sources */,
@@ -946,6 +973,7 @@
 				49E3081130080F3C009B0014 /* TxidResolutionService.swift in Sources */,
 				CF42CAD5BA55B3F759B62E22 /* Trade.swift in Sources */,
 				49E4D8A32FED84B7002AF338 /* BackupServiceProtocol.swift in Sources */,
+				498790B3302CFF9900479903 /* InboundSettlementRepository.swift in Sources */,
 				55681ED47BE9198B5635346A /* TradeDetailView.swift in Sources */,
 				499F1E573009F03E00936944 /* PaymentProgress.swift in Sources */,
 				6929CC2C37EEDC6219317621 /* TradeService.swift in Sources */,
