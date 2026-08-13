@@ -153,7 +153,8 @@ final class UserToLSPHandler: PaymentHandler {
                 )
             }
 
-            let signature = try node.signMessage(msg: Array(payloadStr.utf8))
+            let domain = "stablechannels-stability-payment-v1"
+            let signature = try node.signMessage(msg: Array("\(domain)\n\(payloadStr)".utf8))
 
             let envelopeDict: [String: Any] = [
                 "payload": payloadStr,

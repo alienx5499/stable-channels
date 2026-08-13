@@ -276,7 +276,7 @@ final class IncomingPaymentHandler: PaymentHandler {
         }
 
         let signatureValid = node.verifySignature(
-            msg: Array(payloadStr.utf8),
+            msg: Array("stablechannels-stability-payment-v1\n\(payloadStr)".utf8),
             sig: signature,
             pkey: Constants.lspPubkey
         )
