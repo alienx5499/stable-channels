@@ -45,6 +45,7 @@
 		498790BA302CFFD700479903 /* BalanceUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498790B5302CFFD700479903 /* BalanceUpdater.swift */; };
 		498790BB302CFFD700479903 /* StabilityReconciler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498790B7302CFFD700479903 /* StabilityReconciler.swift */; };
 		498790BC302CFFD700479903 /* TradeAllocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498790B8302CFFD700479903 /* TradeAllocator.swift */; };
+		498790BE302D4D6000479903 /* StabilityEnvelopeBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498790BD302D4D6000479903 /* StabilityEnvelopeBuilder.swift */; };
 		499127782FFEB4FB00D9C81F /* PaymentDirection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499127772FFEB4FB00D9C81F /* PaymentDirection.swift */; };
 		499127802FFEB50B00D9C81F /* IncomingPaymentHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499127792FFEB50B00D9C81F /* IncomingPaymentHandler.swift */; };
 		499127812FFEB50B00D9C81F /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4991277A2FFEB50B00D9C81F /* Logger.swift */; };
@@ -219,6 +220,7 @@
 		498790B6302CFFD700479903 /* StabilityChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StabilityChecker.swift; sourceTree = "<group>"; };
 		498790B7302CFFD700479903 /* StabilityReconciler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StabilityReconciler.swift; sourceTree = "<group>"; };
 		498790B8302CFFD700479903 /* TradeAllocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TradeAllocator.swift; sourceTree = "<group>"; };
+		498790BD302D4D6000479903 /* StabilityEnvelopeBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StabilityEnvelopeBuilder.swift; sourceTree = "<group>"; };
 		499127772FFEB4FB00D9C81F /* PaymentDirection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentDirection.swift; sourceTree = "<group>"; };
 		499127792FFEB50B00D9C81F /* IncomingPaymentHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomingPaymentHandler.swift; sourceTree = "<group>"; };
 		4991277A2FFEB50B00D9C81F /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
@@ -431,6 +433,7 @@
 			children = (
 				498790B5302CFFD700479903 /* BalanceUpdater.swift */,
 				498790B6302CFFD700479903 /* StabilityChecker.swift */,
+				498790BD302D4D6000479903 /* StabilityEnvelopeBuilder.swift */,
 				498790B7302CFFD700479903 /* StabilityReconciler.swift */,
 				498790B8302CFFD700479903 /* TradeAllocator.swift */,
 			);
@@ -929,6 +932,7 @@
 				E7E816D3AF095B47E1F58407 /* HistoricalPrices.swift in Sources */,
 				4983BC9B2FCCA2B800E3B378 /* ShareableQRGenerator.swift in Sources */,
 				88769D82377C43BCF549A52C /* HistoryView.swift in Sources */,
+				498790BE302D4D6000479903 /* StabilityEnvelopeBuilder.swift in Sources */,
 				1A54F909B027D90A0AADD1AF /* HomeView.swift in Sources */,
 				3DBEBB9A611388A35C38F1D2 /* MainTabView.swift in Sources */,
 				8173B7F0205744685F9E67E6 /* NodeService.swift in Sources */,

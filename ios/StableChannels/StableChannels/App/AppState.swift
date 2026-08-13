@@ -2554,12 +2554,6 @@ class AppState {
         }
     }
 
-    private func generateSettlementId() -> String {
-        var bytes = [UInt8](repeating: 0, count: 32)
-        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        return bytes.map { String(format: "%02x", $0) }.joined()
-    }
-
     private func buildSignedStabilityEnvelope(
         settlementId: String,
         channelId: String,
@@ -2569,43 +2563,18 @@ class AppState {
         createdAt: UInt64,
         expiresAt: UInt64
     ) throws -> Data {
-        let payload: [String: Any] = [
-            "type": Constants.stabilityPaymentMessageType,
-            "settlement_id": settlementId,
-            "channel_id": channelId.lowercased(),
-            "amount_msat": amountMsat,
-            "direction": direction,
-            "expected_usd": expectedUsd,
-            "created_at": createdAt,
-            "expires_at": expiresAt
-        ]
-
-        guard let payloadData = try? JSONSerialization.data(withJSONObject: payload),
-              let payloadStr = String(data: payloadData, encoding: .utf8) else {
-            throw NSError(
-                domain: "StableChannels",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Failed to serialize payload"]
-            )
-        }
-
-        let signature = try nodeService.signMessage(Array(payloadStr.utf8))
-
-        let envelope: [String: Any] = [
-            "payload": payloadStr,
-            "signature": signature
-        ]
-
-        guard let envelopeData = try? JSONSerialization.data(withJSONObject: envelope),
-              let envelopeStr = String(data: envelopeData, encoding: .utf8) else {
-            throw NSError(
-                domain: "StableChannels",
-                code: 2,
-                userInfo: [NSLocalizedDescriptionKey: "Failed to serialize envelope"]
-            )
-        }
-
-        return Data(envelopeStr.utf8)
+        try StabilityEnvelopeBuilder.buildSignedStabilityEnvelope(
+            settlementId: settlementId,
+            channelId: channelId,
+            amountMsat: amountMsat,
+            direction: direction,
+            expectedUsd: expectedUsd,
+            createdAt: createdAt,
+            expiresAt: expiresAt,
+            signer: { [nodeService] msg in
+                try nodeService.signMessage(msg)
+            }
+        )
     }
 
     private func runStabilityCheck() {
@@ -2647,7 +2616,7 @@ class AppState {
 
         // Send stability payment
         let paymentId: PaymentId
-        let settlementId = generateSettlementId()
+        let settlementId = StabilityEnvelopeBuilder.generateSettlementId()
         let createdAt = UInt64(Date().timeIntervalSince1970)
         let expiresAt = createdAt + UInt64(Constants.stabilityPaymentAuthTTLSecs)
         do {
