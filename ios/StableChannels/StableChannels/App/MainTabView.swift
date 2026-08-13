@@ -12,25 +12,42 @@ struct MainTabView: View {
     }
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            HomeView()
-                .tabItem {
-                    Label(String(localized: "tab_home", defaultValue: "Home"), systemImage: "house.fill")
-                }
-                .tag(Tab.home)
+        ZStack(alignment: .top) {
+            TabView(selection: $selectedTab) {
+                HomeView()
+                    .tabItem {
+                        Label(String(localized: "tab_home", defaultValue: "Home"), systemImage: "house.fill")
+                    }
+                    .tag(Tab.home)
 
-            HistoryView()
-                .tabItem {
-                    Label(String(localized: "tab_history", defaultValue: "History"), systemImage: "clock.fill")
-                }
-                .tag(Tab.history)
+                HistoryView()
+                    .tabItem {
+                        Label(String(localized: "tab_history", defaultValue: "History"), systemImage: "clock.fill")
+                    }
+                    .tag(Tab.history)
 
-            SettingsView()
-                .tabItem {
-                    Label(String(localized: "tab_settings", defaultValue: "Settings"), systemImage: "gearshape.fill")
+                SettingsView()
+                    .tabItem {
+                        Label(
+                            String(localized: "tab_settings", defaultValue: "Settings"),
+                            systemImage: "gearshape.fill"
+                        )
+                    }
+                    .tag(Tab.settings)
+            }
+
+            if let event = appState.latestReceiveEvent {
+                ReceivePaymentToastView(event: event) {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        appState.latestReceiveEvent = nil
+                    }
                 }
-                .tag(Tab.settings)
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(999)
+            }
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: appState.latestReceiveEvent)
         .environment(coordinator)
         .onChange(of: coordinator.paymentId) { _, newValue in
             if newValue != nil, selectedTab != .history {

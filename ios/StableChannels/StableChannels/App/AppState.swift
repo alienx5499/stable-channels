@@ -92,6 +92,7 @@ class AppState {
     var btcPrice: Double { priceService.currentPrice }
     var statusMessage: String = ""
     var paymentFlash: Bool = false
+    var latestReceiveEvent: ReceiveEvent?
     var isChannelClosing: Bool = false
     var isOpeningChannel: Bool = false
     var isSyncing: Bool = false
@@ -1470,8 +1471,30 @@ class AppState {
 
         // Trigger payment received animation
         paymentFlash = true
+        let toastTitle = isStabilityPayment ? "Stability Payment Received" : "Lightning Payment Received"
+        triggerReceiveAnimation(
+            title: toastTitle,
+            amountUSD: amountUSD,
+            amountSats: amountMsat / 1000,
+            type: paymentType
+        )
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
             self?.paymentFlash = false
+        }
+    }
+
+    func triggerReceiveAnimation(title: String, amountUSD: Double?, amountSats: UInt64, type: String) {
+        let event = ReceiveEvent(title: title, amountUSD: amountUSD, amountSats: amountSats, type: type)
+        DispatchQueue.main.async { [weak self] in
+            self?.latestReceiveEvent = event
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) { [weak self] in
+            if self?.latestReceiveEvent?.id == event.id {
+                withAnimation {
+                    self?.latestReceiveEvent = nil
+                }
+            }
         }
     }
 
@@ -2374,10 +2397,22 @@ class AppState {
                 prevOnchainSats = currentOnchain
                 return
             }
-            // NOTE: do NOT clear lastReceiveTxid here. The view should
-            // show the most recent resolved txid, not be blanked during
-            // the re-detection window. The resolver will update
-            // lastReceiveTxid via handleOnchainReceiveResolved.
+            // Set status message & trigger receive animation
+            if let usd = amountUSD {
+                statusMessage = "On-chain deposit received: \(usd.usdFormatted)"
+            } else {
+                statusMessage = "On-chain deposit received: \(depositSats.btcSpacedFormatted) BTC"
+            }
+            paymentFlash = true
+            triggerReceiveAnimation(
+                title: "On-Chain Deposit Received",
+                amountUSD: amountUSD,
+                amountSats: depositSats,
+                type: "onchain"
+            )
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                self?.paymentFlash = false
+            }
 
             AuditService.log("ONCHAIN_DEPOSIT_DETECTED", data: [
                 "amount_sats": "\(depositSats)",

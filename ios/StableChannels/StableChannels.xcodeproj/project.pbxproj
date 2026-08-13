@@ -40,6 +40,7 @@
 		498244AA3022712F0086BDB6 /* BiometricProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498244A83022712F0086BDB6 /* BiometricProtocols.swift */; };
 		498244AB3022712F0086BDB6 /* BiometricToggleCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498244A93022712F0086BDB6 /* BiometricToggleCoordinator.swift */; };
 		4983BC9B2FCCA2B800E3B378 /* ShareableQRGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4983BC9A2FCCA2B800E3B378 /* ShareableQRGenerator.swift */; };
+		498790CE302DF35A00479903 /* ReceivePaymentToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498790CD302DF35A00479903 /* ReceivePaymentToastView.swift */; };
 		499127782FFEB4FB00D9C81F /* PaymentDirection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499127772FFEB4FB00D9C81F /* PaymentDirection.swift */; };
 		499127802FFEB50B00D9C81F /* IncomingPaymentHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499127792FFEB50B00D9C81F /* IncomingPaymentHandler.swift */; };
 		499127812FFEB50B00D9C81F /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4991277A2FFEB50B00D9C81F /* Logger.swift */; };
@@ -209,6 +210,7 @@
 		498244A83022712F0086BDB6 /* BiometricProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricProtocols.swift; sourceTree = "<group>"; };
 		498244A93022712F0086BDB6 /* BiometricToggleCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricToggleCoordinator.swift; sourceTree = "<group>"; };
 		4983BC9A2FCCA2B800E3B378 /* ShareableQRGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareableQRGenerator.swift; sourceTree = "<group>"; };
+		498790CD302DF35A00479903 /* ReceivePaymentToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceivePaymentToastView.swift; sourceTree = "<group>"; };
 		499127772FFEB4FB00D9C81F /* PaymentDirection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentDirection.swift; sourceTree = "<group>"; };
 		499127792FFEB50B00D9C81F /* IncomingPaymentHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomingPaymentHandler.swift; sourceTree = "<group>"; };
 		4991277A2FFEB50B00D9C81F /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
@@ -697,6 +699,7 @@
 				840E14EF06B6DF0135F2BE70 /* FundWalletView.swift */,
 				95055FDBC76859CB74803660 /* HomeView.swift */,
 				786B669FA976C4646AF0D206 /* PriceChartView.swift */,
+				498790CD302DF35A00479903 /* ReceivePaymentToastView.swift */,
 			);
 			path = Home;
 			sourceTree = "<group>";
@@ -962,6 +965,7 @@
 				9EBF713364DF88022CB4F1D0 /* RestoreSeedSheet.swift in Sources */,
 				10B6FDC89D0F405959F39079 /* SeedWordGridView.swift in Sources */,
 				495CB3FF3017724E00560837 /* ReconnectionManager.swift in Sources */,
+				498790CE302DF35A00479903 /* ReceivePaymentToastView.swift in Sources */,
 				495CB4003017724E00560837 /* ProcessedTxStore.swift in Sources */,
 				1039784966D1ED4635CA96E6 /* LSPConfig.swift in Sources */,
 				A576FC086B9C883563FBE05A /* LSPSettingsView.swift in Sources */,
