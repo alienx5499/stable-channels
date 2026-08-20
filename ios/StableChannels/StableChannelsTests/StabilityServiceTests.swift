@@ -306,4 +306,27 @@ final class StabilityServiceTests: XCTestCase {
         let result = StabilityService.checkStabilityAction(sc, price: 200_000.0)
         XCTAssertEqual(result.action, .pay)
     }
+
+    // MARK: - Trade Max & Rounding Safety
+
+    func testSpendableCentsRoundingNeverExceedsBalance() {
+        let rawBalance = 49.996
+        let floored = floor(rawBalance * 100.0) / 100.0
+        XCTAssertEqual(floored, 49.99)
+        XCTAssertLessThanOrEqual(floored, rawBalance)
+
+        let formatted = String(format: "%.2f", floored)
+        let parsed = Double(formatted) ?? 0
+        XCTAssertEqual(parsed, 49.99)
+        XCTAssertLessThanOrEqual(parsed, rawBalance)
+    }
+
+    func testTradeFeeDeductionCalculation() {
+        let amountUSD = 100.0
+        let feeUSD = amountUSD * Constants.stableChannelTradeFeeRate
+        let netAmountUSD = amountUSD - feeUSD
+        XCTAssertEqual(feeUSD, 1.0)
+        XCTAssertEqual(netAmountUSD, 99.0)
+        XCTAssertEqual(amountUSD, netAmountUSD + feeUSD)
+    }
 }

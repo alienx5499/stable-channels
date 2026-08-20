@@ -264,7 +264,7 @@ struct HomeView: View {
                 stableUSD: appState.stableUSD,
                 nativeSats: nativeSatsDisplay,
                 totalSats: appState.lightningBalanceSats,
-                btcPrice: appState.btcPrice,
+                btcPrice: appState.accountingBTCPrice > 0 ? appState.accountingBTCPrice : appState.btcPrice,
                 onDragStarted: { appState.ensureLSPConnected() },
                 onTradeRequest: { direction, amountUSD in
                     tradeRequest = TradeRequest(direction: direction, amountUSD: amountUSD)

@@ -13,7 +13,7 @@ struct SellView: View {
     init(prefillAmountUSD: Double = 0) {
         self.prefillAmountUSD = prefillAmountUSD
         _amountStr = State(initialValue: prefillAmountUSD > 0
-            ? String(format: "%.2f", prefillAmountUSD)
+            ? String(format: "%.2f", floor(prefillAmountUSD * 100.0) / 100.0)
             : "")
     }
 
@@ -30,7 +30,8 @@ struct SellView: View {
         let stableSats = UInt64(appState.stableUSD / tradePrice * Double(Constants.satsInBTC))
         let nativeSats = appState.lightningBalanceSats > stableSats
             ? appState.lightningBalanceSats - stableSats : 0
-        return Double(nativeSats) / Double(Constants.satsInBTC) * tradePrice
+        let maxUsd = Double(nativeSats) / Double(Constants.satsInBTC) * tradePrice
+        return floor(maxUsd * 100.0) / 100.0
     }
 
     private var amountUSD: Double {
@@ -115,7 +116,7 @@ struct SellView: View {
             Text(availableStr)
                 .foregroundStyle(.secondary)
 
-            if amountUSD > maxSellUSD && amountUSD > 0 {
+            if exceedsBalance {
                 Text(String(localized: "error_exceeds_native", defaultValue: "Exceeds available native BTC"))
                     .font(.caption)
                     .foregroundStyle(.red)
@@ -132,8 +133,12 @@ struct SellView: View {
             Button(String(localized: "button_continue", defaultValue: "Continue")) { step = .confirm }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .disabled(amountUSD <= 0 || amountUSD > maxSellUSD || tradePrice <= 0)
+                .disabled(amountUSD <= 0 || exceedsBalance || tradePrice <= 0)
         }
+    }
+
+    private var exceedsBalance: Bool {
+        amountUSD > (maxSellUSD + 0.005) && amountUSD > 0
     }
 
     private var confirmScreen: some View {

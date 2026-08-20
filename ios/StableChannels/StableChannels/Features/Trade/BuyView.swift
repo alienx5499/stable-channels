@@ -13,7 +13,7 @@ struct BuyView: View {
     init(prefillAmountUSD: Double = 0) {
         self.prefillAmountUSD = prefillAmountUSD
         _amountStr = State(initialValue: prefillAmountUSD > 0
-            ? String(format: "%.2f", prefillAmountUSD)
+            ? String(format: "%.2f", floor(prefillAmountUSD * 100.0) / 100.0)
             : "")
     }
 
@@ -24,7 +24,7 @@ struct BuyView: View {
     }
 
     private var maxBuyUSD: Double {
-        appState.stableChannel.expectedUSD.amount
+        floor(appState.stableChannel.expectedUSD.amount * 100.0) / 100.0
     }
 
     private var tradePrice: Double { appState.accountingBTCPrice }
@@ -112,7 +112,7 @@ struct BuyView: View {
             Text(availableStr)
                 .foregroundStyle(.secondary)
 
-            if amountUSD > maxBuyUSD && amountUSD > 0 {
+            if exceedsBalance {
                 Text(String(localized: "error_exceeds_balance", defaultValue: "Exceeds available stable balance"))
                     .font(.caption)
                     .foregroundStyle(.red)
@@ -129,8 +129,12 @@ struct BuyView: View {
             Button(String(localized: "button_continue", defaultValue: "Continue")) { step = .confirm }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .disabled(amountUSD <= 0 || amountUSD > maxBuyUSD || tradePrice <= 0)
+                .disabled(amountUSD <= 0 || exceedsBalance || tradePrice <= 0)
         }
+    }
+
+    private var exceedsBalance: Bool {
+        amountUSD > (maxBuyUSD + 0.005) && amountUSD > 0
     }
 
     private var confirmScreen: some View {
