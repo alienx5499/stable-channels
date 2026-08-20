@@ -13,7 +13,7 @@ struct SellView: View {
     init(prefillAmountUSD: Double = 0) {
         self.prefillAmountUSD = prefillAmountUSD
         _amountStr = State(initialValue: prefillAmountUSD > 0
-            ? String(format: "%.2f", floor(prefillAmountUSD * 100.0) / 100.0)
+            ? String(format: "%.2f", prefillAmountUSD.flooredToCents)
             : "")
     }
 
@@ -31,7 +31,7 @@ struct SellView: View {
         let nativeSats = appState.lightningBalanceSats > stableSats
             ? appState.lightningBalanceSats - stableSats : 0
         let maxUsd = Double(nativeSats) / Double(Constants.satsInBTC) * tradePrice
-        return floor(maxUsd * 100.0) / 100.0
+        return maxUsd.flooredToCents
     }
 
     private var amountUSD: Double {

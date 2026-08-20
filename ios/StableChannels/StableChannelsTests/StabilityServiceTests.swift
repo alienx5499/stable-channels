@@ -311,7 +311,7 @@ final class StabilityServiceTests: XCTestCase {
 
     func testSpendableCentsRoundingNeverExceedsBalance() {
         let rawBalance = 49.996
-        let floored = floor(rawBalance * 100.0) / 100.0
+        let floored = rawBalance.flooredToCents
         XCTAssertEqual(floored, 49.99)
         XCTAssertLessThanOrEqual(floored, rawBalance)
 

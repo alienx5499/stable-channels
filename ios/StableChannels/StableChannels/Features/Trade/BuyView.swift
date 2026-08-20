@@ -13,7 +13,7 @@ struct BuyView: View {
     init(prefillAmountUSD: Double = 0) {
         self.prefillAmountUSD = prefillAmountUSD
         _amountStr = State(initialValue: prefillAmountUSD > 0
-            ? String(format: "%.2f", floor(prefillAmountUSD * 100.0) / 100.0)
+            ? String(format: "%.2f", prefillAmountUSD.flooredToCents)
             : "")
     }
 
@@ -24,7 +24,7 @@ struct BuyView: View {
     }
 
     private var maxBuyUSD: Double {
-        floor(appState.stableChannel.expectedUSD.amount * 100.0) / 100.0
+        appState.stableChannel.expectedUSD.amount.flooredToCents
     }
 
     private var tradePrice: Double { appState.accountingBTCPrice }

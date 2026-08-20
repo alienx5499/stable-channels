@@ -134,7 +134,7 @@ struct BalanceBarView: View {
                         let clamped = direction == .buy
                             ? min(tradeUSD, stableUSD)
                             : min(tradeUSD, nativeUSD)
-                        let flooredAmount = floor(clamped * 100.0) / 100.0
+                        let flooredAmount = clamped.flooredToCents
                         guard flooredAmount >= minTradeUSD else {
                             withAnimation(.easeOut(duration: 0.25)) { dragOffset = 0 }
                             return

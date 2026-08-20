@@ -58,6 +58,11 @@ extension Double {
         formatter.maximumFractionDigits = 2
         return formatter.string(from: NSNumber(value: self)) ?? "$0.00"
     }
+
+    /// Return only whole spendable cents, floored to 2 decimal places.
+    var flooredToCents: Double {
+        floor(self * 100.0) / 100.0
+    }
 }
 
 extension UIFont {
