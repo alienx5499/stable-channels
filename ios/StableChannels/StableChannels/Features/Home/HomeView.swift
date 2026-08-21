@@ -241,15 +241,28 @@ struct HomeView: View {
     // MARK: - Balance Bar (Stable / Native)
 
     private var stableSats: UInt64 {
-        appState.btcPrice > 0
+        guard appState.stableUSD > 0 else { return 0 }
+        let totalUSD = appState.btcPrice > 0
+            ? Double(appState.lightningBalanceSats) / Double(Constants.satsInBTC) * appState.btcPrice
+            : 0
+        if totalUSD > 0, appState.stableUSD >= (totalUSD - 0.01) {
+            return appState.lightningBalanceSats
+        }
+        return appState.btcPrice > 0
             ? UInt64(appState.stableUSD / appState.btcPrice * Double(Constants.satsInBTC))
             : 0
     }
 
     private var nativeSatsDisplay: UInt64 {
-        appState.lightningBalanceSats > stableSats
-            ? appState.lightningBalanceSats - stableSats
+        guard appState.lightningBalanceSats > stableSats else { return 0 }
+        let remaining = appState.lightningBalanceSats - stableSats
+        let totalUSD = appState.btcPrice > 0
+            ? Double(appState.lightningBalanceSats) / Double(Constants.satsInBTC) * appState.btcPrice
             : 0
+        if totalUSD > 0, appState.stableUSD >= (totalUSD - 0.01) {
+            return 0
+        }
+        return remaining
     }
 
     private var nativeUSD: Double {

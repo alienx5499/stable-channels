@@ -329,4 +329,22 @@ final class StabilityServiceTests: XCTestCase {
         XCTAssertEqual(netAmountUSD, 99.0)
         XCTAssertEqual(amountUSD, netAmountUSD + feeUSD)
     }
+
+    func testMaxTradeAtomicStabilization() {
+        var sc = StableChannel.default
+        sc.isStableReceiver = true
+        sc.stableReceiverBTC = Bitcoin(sats: 50_000)
+        let price = 100_000.0 // $100k/BTC -> 50k sats = $50.00 total capacity
+
+        // Initial: 0 USD expected, 50k sats native
+        StabilityService.applyTrade(&sc, newExpectedUSD: 0.0, price: price)
+        XCTAssertEqual(sc.backingSats, 0)
+        XCTAssertEqual(sc.nativeChannelBTC.sats, 50_000)
+
+        // 100% Max Sell: stabilize entire channel capacity ($50.00)
+        let totalUSD = USD.fromBitcoin(sc.stableReceiverBTC, price: price).amount
+        StabilityService.applyTrade(&sc, newExpectedUSD: totalUSD, price: price)
+        XCTAssertEqual(sc.backingSats, 50_000)
+        XCTAssertEqual(sc.nativeChannelBTC.sats, 0) // Exactly 0 sats left!
+    }
 }
