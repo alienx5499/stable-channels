@@ -94,6 +94,13 @@ enum StabilityService {
         recomputeNative(&sc)
     }
 
+    /// Determines whether the channel balance is effectively 100% stabilized.
+    static func isFullyStabilized(stableUSD: Double, totalLightningSats: UInt64, price: Double) -> Bool {
+        guard stableUSD > 0, price > 0 else { return false }
+        let totalUSD = Double(totalLightningSats) / Double(Constants.satsInBTC) * price
+        return totalUSD > 0 && stableUSD >= (totalUSD - Constants.tradeDustThresholdUSD)
+    }
+
     /// Apply a trade — set new expected USD and recalculate backing sats + native sats.
     static func applyTrade(_ sc: inout StableChannel, newExpectedUSD: Double, price: Double) {
         sc.expectedUSD = USD(amount: newExpectedUSD)

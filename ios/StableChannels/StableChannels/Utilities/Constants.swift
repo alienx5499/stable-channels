@@ -59,6 +59,7 @@ enum Constants {
     static let stabilityThresholdPercent: Double = 0.1
     static let stabilityThresholdUSD: Double = 0.25
     static let stabilityPaymentCooldownSecs: UInt64 = 120
+    static let tradeDustThresholdUSD: Double = 0.01
     static let minDisplayUSD: Double = 2.0
     static let maxChannelUSD: Double = 100.0
     /// Stable-channel trade fee paid to the LSP as the TRADE_V1 keysend amount.

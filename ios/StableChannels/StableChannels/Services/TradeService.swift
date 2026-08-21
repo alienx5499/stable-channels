@@ -22,7 +22,7 @@ class TradeService {
         guard amountUSD > 0, amountUSD <= sc.expectedUSD.amount + 0.005, price > 0 else { return nil }
 
         let netAmount = amountUSD - feeUSD
-        let isMaxBuy = (sc.expectedUSD.amount - amountUSD) < 0.01
+        let isMaxBuy = (sc.expectedUSD.amount - amountUSD) < Constants.tradeDustThresholdUSD
         let newExpectedUSD = isMaxBuy ? 0.0 : max(sc.expectedUSD.amount - amountUSD, 0)
         let btcAmount = netAmount / price
 
@@ -50,7 +50,7 @@ class TradeService {
         guard amountUSD > 0, price > 0 else { return nil }
 
         let netAmount = amountUSD - feeUSD
-        let isMaxSell = (maxUSD - (sc.expectedUSD.amount + amountUSD)) < 0.01
+        let isMaxSell = (maxUSD - (sc.expectedUSD.amount + amountUSD)) < Constants.tradeDustThresholdUSD
         let newExpectedUSD = isMaxSell ? maxUSD : min(sc.expectedUSD.amount + netAmount, maxUSD)
         let btcAmount = netAmount / price
 

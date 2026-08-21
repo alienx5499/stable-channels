@@ -240,12 +240,17 @@ struct HomeView: View {
 
     // MARK: - Balance Bar (Stable / Native)
 
+    private var isFullyStabilized: Bool {
+        StabilityService.isFullyStabilized(
+            stableUSD: appState.stableUSD,
+            totalLightningSats: appState.lightningBalanceSats,
+            price: appState.btcPrice
+        )
+    }
+
     private var stableSats: UInt64 {
         guard appState.stableUSD > 0 else { return 0 }
-        let totalUSD = appState.btcPrice > 0
-            ? Double(appState.lightningBalanceSats) / Double(Constants.satsInBTC) * appState.btcPrice
-            : 0
-        if totalUSD > 0, appState.stableUSD >= (totalUSD - 0.01) {
+        if isFullyStabilized {
             return appState.lightningBalanceSats
         }
         return appState.btcPrice > 0
@@ -254,15 +259,8 @@ struct HomeView: View {
     }
 
     private var nativeSatsDisplay: UInt64 {
-        guard appState.lightningBalanceSats > stableSats else { return 0 }
-        let remaining = appState.lightningBalanceSats - stableSats
-        let totalUSD = appState.btcPrice > 0
-            ? Double(appState.lightningBalanceSats) / Double(Constants.satsInBTC) * appState.btcPrice
-            : 0
-        if totalUSD > 0, appState.stableUSD >= (totalUSD - 0.01) {
-            return 0
-        }
-        return remaining
+        guard appState.lightningBalanceSats > stableSats, !isFullyStabilized else { return 0 }
+        return appState.lightningBalanceSats - stableSats
     }
 
     private var nativeUSD: Double {
