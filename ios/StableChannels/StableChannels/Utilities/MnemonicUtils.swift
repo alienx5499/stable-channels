@@ -60,9 +60,14 @@ enum MnemonicUtils {
         }
     }
 
-    // MARK: - Display
+    /// Full BIP-39 validation (valid wordlist words and valid checksum)
+    static func isValidMnemonic(_ mnemonic: String) -> Bool {
+        BIP39.isValid(mnemonic)
+    }
 
-    /// Convert mnemonic to display format (space-separated, trimmed)
+    // MARK: - Display Formatting
+
+    /// Format mnemonic for display (normalized spaces, lowercase)
     static func formatForDisplay(_ mnemonic: String) -> String {
         parseMnemonic(mnemonic).joined(separator: " ")
     }

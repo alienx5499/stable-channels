@@ -325,7 +325,8 @@ class AppState {
     func restoreWalletFromMnemonic(_ mnemonic: String, acknowledgeForceClose: Bool = false) async throws {
         let words = MnemonicUtils.formatForDisplay(mnemonic)
         guard MnemonicUtils.isValidWordCount(words),
-              MnemonicUtils.hasValidCharacterFormat(words) else {
+              MnemonicUtils.hasValidCharacterFormat(words),
+              MnemonicUtils.isValidMnemonic(words) else {
             throw WalletRestoreError.invalidMnemonic
         }
 
@@ -501,6 +502,7 @@ class AppState {
     /// throwaway node in a temp directory. Returns nil on any failure so the
     /// restore guard fails open.
     private nonisolated static func deriveNodeId(mnemonic: String) -> String? {
+        guard MnemonicUtils.isValidMnemonic(mnemonic) else { return nil }
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("nodeid-probe-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: tmp) }

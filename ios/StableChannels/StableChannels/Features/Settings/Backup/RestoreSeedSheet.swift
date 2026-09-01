@@ -13,85 +13,125 @@ struct RestoreSeedSheet: View {
     let onCancel: () -> Void
     let onSuccess: () -> Void
 
+    @State private var committedWords: [String] = []
+    @State private var currentInput: String = ""
     @State private var showForceCloseConfirm = false
     @State private var showGuardUnavailableConfirm = false
-
-    private var wordCount: Int {
-        MnemonicUtils.detectWordCount(restoreMnemonic)
-    }
+    @State private var showLearnMoreSheet = false
 
     private var restoreValid: Bool {
-        let filledCount = wordFields.filter { !$0.isEmpty }.count
-        return filledCount == SeedConstants.wordCount12 || filledCount == SeedConstants.wordCount24
+        (committedWords.count == SeedConstants.wordCount12 || committedWords.count == SeedConstants.wordCount24) &&
+            currentInput.isEmpty
     }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    headerSection
+            ZStack {
+                Color.black.ignoresSafeArea()
 
-                    seedTextField
-                        .onTapGesture {
-                            UIApplication.shared.sendAction(
-                                #selector(UIResponder.resignFirstResponder),
-                                to: nil,
-                                from: nil,
-                                for: nil
+                VStack(spacing: 0) {
+                    ScrollView(showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 20) {
+                            // Header
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(String(localized: "title_restore_seed", defaultValue: "Restore from Seed"))
+                                    .font(.system(size: 28, weight: .bold))
+                                    .foregroundStyle(.white)
+
+                                HStack(spacing: 6) {
+                                    Text(String(
+                                        localized: "instruction_restore",
+                                        defaultValue: "Enter your 12 or 24-word seed phrase."
+                                    ))
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(Color(uiColor: .lightGray))
+
+                                    Button {
+                                        showLearnMoreSheet = true
+                                    } label: {
+                                        Image(systemName: "info.circle")
+                                            .font(.system(size: 15))
+                                            .foregroundStyle(Color(white: 0.6))
+                                    }
+                                }
+                            }
+                            .padding(.top, 12)
+
+                            // Warning Notice
+                            warningCard
+
+                            // Interactive Recovery Phrase Input View
+                            InteractivePhraseInputView(
+                                committedWords: $committedWords,
+                                currentInput: $currentInput,
+                                onCommitPhrase: { words in
+                                    syncFields(from: words)
+                                },
+                                onPaste: {
+                                    pasteFromClipboard()
+                                },
+                                onClearAll: {
+                                    clearAll()
+                                }
                             )
-                        }
 
-                    SeedWordGridView(
-                        wordFields: wordFields,
-                        isReadOnly: isWordFieldsReadOnly,
-                        isDisabled: isRestoring,
-                        wordCount: wordCount,
-                        onWordChanged: { index, word in
-                            wordFields[index] = word
-                            syncMnemonicFromFields()
+                            if let error = restoreError {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .font(.system(size: 13))
+                                    Text(error)
+                                        .font(.system(size: 13))
+                                }
+                                .foregroundStyle(.red)
+                                .padding(.top, 4)
+                            }
                         }
-                    )
-
-                    if let error = restoreError {
-                        Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.red)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 24)
                     }
 
+                    // Bottom Action Button
                     Button {
                         Task { await restoreWallet() }
                     } label: {
                         if isRestoring {
                             HStack(spacing: 8) {
                                 ProgressView()
+                                    .tint(.black)
                                 Text(String(localized: "restoring", defaultValue: "Restoring..."))
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundStyle(.black)
                             }
                         } else {
                             Text(String(localized: "button_restore", defaultValue: "Restore"))
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(restoreValid ? .black : Color.secondary)
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(.ultraThinMaterial)
-                    .foregroundStyle(restoreValid ? .blue : .secondary)
-                    .clipShape(.rect(cornerRadius: 14))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(restoreValid ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
-                    )
+                    .frame(height: 50)
+                    .background(restoreValid ? Color.white : Color(white: 0.18))
+                    .clipShape(Capsule())
                     .disabled(!restoreValid || isRestoring)
-
-                    Spacer()
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
                 }
-                .padding()
             }
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "button_cancel", defaultValue: "Cancel")) {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
                         onCancel()
                         dismiss()
+                    } label: {
+                        Image(systemName: "chevron.backward")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
                     }
                 }
+            }
+            .sheet(isPresented: $showLearnMoreSheet) {
+                RevealQuizLearnMoreSheet()
             }
             .alert(
                 String(localized: "title_open_channel_detected", defaultValue: "Open Channel Detected"),
@@ -127,91 +167,85 @@ struct RestoreSeedSheet: View {
                     defaultValue: "The server couldn't be reached to check whether this wallet still has an open Lightning channel. If it does, restoring from seed alone will force-close it on-chain. Continue only if you're sure, or try again with a network connection."
                 ))
             }
+            .onAppear {
+                initFromBindings()
+            }
         }
+        .preferredColorScheme(.dark)
     }
 
     // MARK: - Subviews
 
-    private var headerSection: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "arrow.uturn.backward.circle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.orange)
+    private var warningCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.orange)
 
-            Text(String(localized: "title_restore_seed", defaultValue: "Restore from Seed"))
-                .font(.title2.bold())
-
-            warningBanner
+                Text(String(localized: "warning_partial_recovery", defaultValue: "Onchain Recovery Notice"))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
 
             Text(String(
-                localized: "instruction_restore",
-                defaultValue: "Enter your 12 or 24-word seed phrase."
+                localized: "warning_restore_desc",
+                defaultValue: "Restoring from seed recovers onchain funds. Active Lightning channels cannot be recovered via seed alone and will require LSP settlement."
             ))
-            .font(.callout)
-            .foregroundStyle(.secondary)
-            .multilineTextAlignment(.center)
+            .font(.system(size: 13))
+            .foregroundStyle(Color(white: 0.72))
+            .lineSpacing(2.5)
         }
-    }
-
-    private var warningBanner: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                Text("Partial Recovery Warning")
-                    .font(.headline)
-                Spacer()
-            }
-
-            Text(
-                "This recovery will restore onchain funds but NOT Lightning channel state. Lightning funds will be lost and may require LSP force-close."
-            )
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-
-            Text("Please withdraw all BTC before proceeding. Existing wallet data will be completely overwritten.")
-                .font(.caption)
-                .foregroundStyle(.red)
-                .fontWeight(.semibold)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding()
-        .background(.orange.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    private var seedTextField: some View {
-        TextField(
-            String(localized: "placeholder_seed", defaultValue: "Paste your seed phrase here"),
-            text: $restoreMnemonic,
-            axis: .vertical
-        )
-        .textInputAutocapitalization(.never)
-        .autocorrectionDisabled()
-        .lineLimit(5...10)
-        .font(.system(.body, design: .monospaced))
-        .padding()
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .onChange(of: restoreMnemonic) { _, newValue in
-            if isImportingSeed {
-                isImportingSeed = false
-                return
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.orange.opacity(0.24), lineWidth: 1)
+        )
+    }
+
+    // MARK: - Synchronization & Actions
+
+    private func initFromBindings() {
+        if !restoreMnemonic.isEmpty {
+            let parsed = MnemonicUtils.parseMnemonic(restoreMnemonic)
+            if !parsed.isEmpty {
+                committedWords = parsed
             }
-            syncWordFields(from: newValue)
+        } else {
+            let existing = wordFields.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            if !existing.isEmpty {
+                committedWords = existing
+            }
         }
-        .disabled(isRestoring)
     }
 
-    private func syncWordFields(from text: String) {
-        wordFields = MnemonicUtils.wordsToFields(MnemonicUtils.parseMnemonic(text))
-        isWordFieldsReadOnly = true
-    }
-
-    private func syncMnemonicFromFields() {
+    private func syncFields(from words: [String]) {
+        restoreMnemonic = words.joined(separator: " ")
+        wordFields = MnemonicUtils.wordsToFields(words)
         isWordFieldsReadOnly = false
-        restoreMnemonic = wordFields.filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    private func pasteFromClipboard() {
+        guard let text = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !text.isEmpty else {
+            return
+        }
+        let parsed = MnemonicUtils.parseMnemonic(text)
+        guard !parsed.isEmpty else { return }
+        committedWords = Array(parsed.prefix(24))
+        currentInput = ""
+        syncFields(from: committedWords)
+    }
+
+    private func clearAll() {
+        committedWords = []
+        currentInput = ""
+        restoreMnemonic = ""
+        wordFields = Array(repeating: "", count: SeedConstants.maxWordCount)
+        restoreError = nil
     }
 
     private func restoreWallet(acknowledgeForceClose: Bool = false) async {
@@ -222,7 +256,16 @@ struct RestoreSeedSheet: View {
 
         guard MnemonicUtils.isValidWordCount(input) else {
             isRestoring = false
-            restoreError = String(localized: "error_seed_word_count")
+            restoreError = String(localized: "error_seed_word_count", defaultValue: "Please enter 12 or 24 words.")
+            return
+        }
+
+        guard MnemonicUtils.isValidMnemonic(input) else {
+            isRestoring = false
+            restoreError = String(
+                localized: "error_invalid_seed_phrase",
+                defaultValue: "Invalid Secret Recovery Phrase. Please check word spelling and order."
+            )
             return
         }
 
@@ -231,21 +274,22 @@ struct RestoreSeedSheet: View {
                 input,
                 acknowledgeForceClose: acknowledgeForceClose
             )
-            restoreMnemonic = ""
-            wordFields = Array(repeating: "", count: SeedConstants.maxWordCount)
-            isWordFieldsReadOnly = false
+            clearAll()
             isRestoring = false
             onSuccess()
             dismiss()
         } catch AppState.WalletRestoreError.activeChannelDetected {
-            // Divergence guard tripped: restoring would force-close a live
-            // channel. Ask the user to opt in explicitly.
             isRestoring = false
             showForceCloseConfirm = true
         } catch AppState.WalletRestoreError.channelCheckUnavailable {
-            // Guard couldn't run — fail-warn instead of silently proceeding.
             isRestoring = false
             showGuardUnavailableConfirm = true
+        } catch AppState.WalletRestoreError.invalidMnemonic {
+            isRestoring = false
+            restoreError = String(
+                localized: "error_invalid_seed_phrase",
+                defaultValue: "Invalid Secret Recovery Phrase. Please check word spelling and order."
+            )
         } catch {
             restoreError = String(localized: "error_restore_failed") + error.localizedDescription
             isRestoring = false
