@@ -20,8 +20,11 @@ struct RestoreSeedSheet: View {
     @State private var showLearnMoreSheet = false
 
     private var restoreValid: Bool {
-        (committedWords.count == SeedConstants.wordCount12 || committedWords.count == SeedConstants.wordCount24) &&
-            currentInput.isEmpty
+        guard currentInput.isEmpty else { return false }
+        if committedWords.count == SeedConstants.wordCount12 || committedWords.count == SeedConstants.wordCount24 {
+            return BIP39.isValid(committedWords.joined(separator: " "))
+        }
+        return false
     }
 
     var body: some View {

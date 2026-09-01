@@ -8,10 +8,29 @@ struct InteractivePhraseInputView: View {
     let onPaste: () -> Void
     let onClearAll: () -> Void
 
+    private let columns = [
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8)
+    ]
+
     private var isInvalidPrefix: Bool {
         let trimmed = currentInput.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !trimmed.isEmpty else { return false }
         return !BIP39WordList.hasPrefixMatch(trimmed)
+    }
+
+    private var isInvalidChecksum: Bool {
+        guard currentInput.isEmpty else { return false }
+        if committedWords.count == 12 || committedWords.count == 24 {
+            let phrase = committedWords.joined(separator: " ")
+            return !BIP39.isValid(phrase)
+        }
+        return false
+    }
+
+    private var hasError: Bool {
+        isInvalidPrefix || isInvalidChecksum
     }
 
     private var suggestions: [String] {
@@ -26,53 +45,120 @@ struct InteractivePhraseInputView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Main Input Container (Obsidian card)
+            // Main Input Container
             ZStack(alignment: .topLeading) {
-                // Background Box
+                // Background Obsidian Box
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(Color(uiColor: .secondarySystemGroupedBackground))
                     .overlay(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
                             .stroke(
-                                isInvalidPrefix ? Color
+                                hasError ? Color
                                     .red : (isFieldFocused ? Color.white.opacity(0.24) : Color.white.opacity(0.08)),
-                                lineWidth: isInvalidPrefix ? 1.5 : 1
+                                lineWidth: hasError ? 1.5 : 1
                             )
                     )
 
-                if committedWords.isEmpty {
-                    // Initial Clean Text Input with Placeholder
-                    TextField(
-                        String(
-                            localized: "restore_placeholder_metamask",
-                            defaultValue: "Add a space between each word and make sure no one is watching"
-                        ),
-                        text: $currentInput,
-                        axis: .vertical
-                    )
-                    .focused($isFieldFocused)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
+                if committedWords.isEmpty && currentInput.isEmpty && !isFieldFocused {
+                    // Initial Clean Text Input Placeholder
+                    Text(String(
+                        localized: "restore_placeholder_metamask",
+                        defaultValue: "Add a space between each word and make sure no one is watching"
+                    ))
                     .font(.system(size: 15))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color(white: 0.55))
                     .lineSpacing(5)
                     .padding(20)
-                    .toolbar {
-                        ToolbarItemGroup(placement: .keyboard) {
-                            keyboardSuggestionsBar
+                    .allowsHitTesting(false)
+                } else if committedWords.isEmpty && !isFieldFocused {
+                    // Unfocused text preview
+                    Text(currentInput)
+                        .font(.system(size: 15))
+                        .foregroundStyle(.white)
+                        .padding(20)
+                        .allowsHitTesting(false)
+                }
+
+                // 3 Equal-Sized Boxes Grid Layout (3 words per row)
+                LazyVGrid(columns: columns, spacing: 8) {
+                    // Committed Word Boxes
+                    ForEach(Array(committedWords.enumerated()), id: \.offset) { index, word in
+                        HStack(spacing: 4) {
+                            Text("\(index + 1).")
+                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                .foregroundStyle(isInvalidChecksum ? Color.red.opacity(0.8) : Color(white: 0.5))
+                                .fixedSize()
+
+                            Text(word)
+                                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 8)
+                        .frame(height: 38)
+                        .background(Color.black)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(
+                                    isInvalidChecksum ? Color.red.opacity(0.6) : Color.white.opacity(0.12),
+                                    lineWidth: 1
+                                )
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            removeWord(at: index)
                         }
                     }
-                    .onChange(of: currentInput) { _, newValue in
-                        handleInputChanged(newValue)
+
+                    // Active Typing Equal-Sized Box
+                    if committedWords.count < 24 {
+                        HStack(spacing: 4) {
+                            Text("\(committedWords.count + 1).")
+                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                .foregroundStyle(isInvalidPrefix ? Color.red : Color.stablePrimary)
+                                .fixedSize()
+
+                            TextField("", text: $currentInput)
+                                .focused($isFieldFocused)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .toolbar {
+                                    ToolbarItemGroup(placement: .keyboard) {
+                                        keyboardSuggestionsBar
+                                    }
+                                }
+                                .onChange(of: currentInput) { _, newValue in
+                                    handleInputChanged(newValue)
+                                }
+                                .onSubmit {
+                                    handleReturnPressed()
+                                }
+                        }
+                        .padding(.horizontal, 8)
+                        .frame(height: 38)
+                        .background(Color.black)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(
+                                    isInvalidPrefix ? Color.red : Color.stablePrimary,
+                                    lineWidth: 1.5
+                                )
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            isFieldFocused = true
+                        }
                     }
-                    .onSubmit {
-                        handleReturnPressed()
-                    }
-                } else {
-                    // Word Blocks Flow Layout with Active Input Field (allows continuing to 24 words)
-                    wordBlocksFlowLayout
-                        .padding(16)
                 }
+                .padding(14)
+                .opacity((committedWords.isEmpty && currentInput.isEmpty && !isFieldFocused) ? 0 : 1)
             }
             .frame(minHeight: committedWords.count >= 12 ? 240 : 170)
             .contentShape(Rectangle())
@@ -82,13 +168,12 @@ struct InteractivePhraseInputView: View {
                 }
             }
 
-            // Below Box Actions (Paste / Clear all)
+            // Below Box Actions (Paste / Clear all & Word Count)
             HStack {
-                // Word counter helper
                 if !committedWords.isEmpty {
                     Text("\(committedWords.count) / \(committedWords.count <= 12 ? 12 : 24) words")
                         .font(.system(size: 13, weight: .medium, design: .monospaced))
-                        .foregroundStyle(Color(white: 0.5))
+                        .foregroundStyle(isInvalidChecksum ? Color.red : Color(white: 0.5))
                 }
 
                 Spacer()
@@ -115,8 +200,8 @@ struct InteractivePhraseInputView: View {
             }
             .padding(.horizontal, 4)
 
-            // Spelling / Invalid Prefix Error Notice
-            if isInvalidPrefix {
+            // Spelling / Invalid Prefix or Checksum Error Notice
+            if isInvalidPrefix || isInvalidChecksum {
                 Text(String(
                     localized: "restore_error_invalid_prefix",
                     defaultValue: "Use only lowercase letters, check your spelling, and put the words in the original order."
@@ -126,78 +211,6 @@ struct InteractivePhraseInputView: View {
                 .lineSpacing(2)
                 .padding(.top, 2)
                 .transition(.opacity)
-            }
-        }
-    }
-
-    // MARK: - Word Blocks Flow
-
-    private var wordBlocksFlowLayout: some View {
-        FlowLayout(spacing: 8) {
-            ForEach(Array(committedWords.enumerated()), id: \.offset) { index, word in
-                HStack(spacing: 6) {
-                    Text("\(index + 1).")
-                        .font(.system(size: 13, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Color(white: 0.5))
-
-                    Text(word)
-                        .font(.system(size: 14, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.white)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.black)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                )
-                .onTapGesture {
-                    removeWord(at: index)
-                }
-            }
-
-            // Currently Active Word Input Box (active up to 24 words)
-            if committedWords.count < 24 {
-                HStack(spacing: 6) {
-                    Text("\(committedWords.count + 1).")
-                        .font(.system(size: 13, weight: .bold, design: .monospaced))
-                        .foregroundStyle(isInvalidPrefix ? Color.red : Color.stablePrimary)
-
-                    TextField("", text: $currentInput)
-                        .focused($isFieldFocused)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .font(.system(size: 14, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.white)
-                        .frame(minWidth: 54)
-                        .fixedSize(horizontal: true, vertical: false)
-                        .toolbar {
-                            ToolbarItemGroup(placement: .keyboard) {
-                                keyboardSuggestionsBar
-                            }
-                        }
-                        .onChange(of: currentInput) { _, newValue in
-                            handleInputChanged(newValue)
-                        }
-                        .onSubmit {
-                            handleReturnPressed()
-                        }
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.black)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(
-                            isInvalidPrefix ? Color.red : Color.stablePrimary,
-                            lineWidth: 1.5
-                        )
-                )
-                .onTapGesture {
-                    isFieldFocused = true
-                }
             }
         }
     }
@@ -287,48 +300,5 @@ struct InteractivePhraseInputView: View {
         }
         onCommitPhrase(committedWords)
         isFieldFocused = true
-    }
-}
-
-// MARK: - Flow Layout Helper
-
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
-        let result = computeLayout(proposal: proposal, subviews: subviews)
-        return result.size
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
-        let result = computeLayout(proposal: proposal, subviews: subviews)
-        for (index, point) in result.points.enumerated() {
-            subviews[index].place(
-                at: CGPoint(x: bounds.minX + point.x, y: bounds.minY + point.y),
-                proposal: .unspecified
-            )
-        }
-    }
-
-    private func computeLayout(proposal: ProposedViewSize, subviews: Subviews) -> (size: CGSize, points: [CGPoint]) {
-        let maxWidth = proposal.width ?? .infinity
-        var currentX: CGFloat = 0
-        var currentY: CGFloat = 0
-        var lineHeight: CGFloat = 0
-        var points: [CGPoint] = []
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if currentX + size.width > maxWidth && currentX > 0 {
-                currentX = 0
-                currentY += lineHeight + spacing
-                lineHeight = 0
-            }
-            points.append(CGPoint(x: currentX, y: currentY))
-            currentX += size.width + spacing
-            lineHeight = max(lineHeight, size.height)
-        }
-
-        return (CGSize(width: maxWidth, height: currentY + lineHeight), points)
     }
 }
