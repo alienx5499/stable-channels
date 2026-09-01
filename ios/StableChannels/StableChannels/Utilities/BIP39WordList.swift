@@ -279,20 +279,47 @@ extension BIP39WordList {
     static func hasPrefixMatch(_ prefix: String) -> Bool {
         let p = prefix.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !p.isEmpty else { return true }
-        return english.contains { $0.hasPrefix(p) }
+        var low = 0
+        var high = english.count - 1
+        while low <= high {
+            let mid = (low + high) / 2
+            let word = english[mid]
+            if word.hasPrefix(p) {
+                return true
+            } else if word < p {
+                low = mid + 1
+            } else {
+                high = mid - 1
+            }
+        }
+        return false
     }
 
-    /// Get up to `limit` autocomplete suggestions for a given typed prefix
+    /// Get up to `limit` autocomplete suggestions for a given typed prefix using O(log N) binary search
     static func suggestions(for prefix: String, limit: Int = 5) -> [String] {
         let p = prefix.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !p.isEmpty else { return [] }
+
+        var low = 0
+        var high = english.count
+        while low < high {
+            let mid = (low + high) / 2
+            if english[mid] < p && !english[mid].hasPrefix(p) {
+                low = mid + 1
+            } else {
+                high = mid
+            }
+        }
+
         var result: [String] = []
-        for word in english {
+        var index = low
+        while index < english.count && result.count < limit {
+            let word = english[index]
             if word.hasPrefix(p) {
                 result.append(word)
-                if result.count >= limit {
-                    break
-                }
+                index += 1
+            } else {
+                break
             }
         }
         return result
