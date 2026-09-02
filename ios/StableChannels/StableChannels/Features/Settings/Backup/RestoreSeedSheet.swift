@@ -18,6 +18,7 @@ struct RestoreSeedSheet: View {
     @State private var showForceCloseConfirm = false
     @State private var showGuardUnavailableConfirm = false
     @State private var showLearnMoreSheet = false
+    @State private var showPartialWarningSheet = false
 
     private var restoreValid: Bool {
         guard currentInput.isEmpty else { return false }
@@ -35,33 +36,38 @@ struct RestoreSeedSheet: View {
                 VStack(spacing: 0) {
                     ScrollView(showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 20) {
-                            // Header
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(String(localized: "title_restore_seed", defaultValue: "Restore from Seed"))
-                                    .font(.system(size: 28, weight: .bold))
-                                    .foregroundStyle(.white)
+                            // Centered Header with Menu Recovery Icon
+                            VStack(spacing: 12) {
+                                Image(systemName: "arrow.uturn.backward.circle.fill")
+                                    .font(.system(size: 52))
+                                    .foregroundStyle(.orange)
 
-                                HStack(spacing: 6) {
-                                    Text(String(
-                                        localized: "instruction_restore",
-                                        defaultValue: "Enter your 12 or 24-word seed phrase."
-                                    ))
-                                    .font(.system(size: 15))
-                                    .foregroundStyle(Color(uiColor: .lightGray))
+                                VStack(spacing: 6) {
+                                    Text(String(localized: "title_restore_seed", defaultValue: "Restore from Seed"))
+                                        .font(.system(size: 26, weight: .bold))
+                                        .foregroundStyle(.white)
 
-                                    Button {
-                                        showLearnMoreSheet = true
-                                    } label: {
-                                        Image(systemName: "info.circle")
-                                            .font(.system(size: 15))
-                                            .foregroundStyle(Color(white: 0.6))
+                                    HStack(spacing: 6) {
+                                        Text(String(
+                                            localized: "instruction_restore",
+                                            defaultValue: "Enter your 12 or 24-word seed phrase."
+                                        ))
+                                        .font(.system(size: 15))
+                                        .foregroundStyle(Color(uiColor: .lightGray))
+
+                                        Button {
+                                            showLearnMoreSheet = true
+                                        } label: {
+                                            Image(systemName: "info.circle")
+                                                .font(.system(size: 15))
+                                                .foregroundStyle(Color(white: 0.6))
+                                        }
                                     }
                                 }
                             }
-                            .padding(.top, 12)
-
-                            // Warning Notice
-                            warningCard
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, 16)
+                            .padding(.bottom, 4)
 
                             // Interactive Recovery Phrase Input View
                             InteractivePhraseInputView(
@@ -95,7 +101,7 @@ struct RestoreSeedSheet: View {
 
                     // Bottom Action Button
                     Button {
-                        Task { await restoreWallet() }
+                        showPartialWarningSheet = true
                     } label: {
                         if isRestoring {
                             HStack(spacing: 8) {
@@ -131,6 +137,11 @@ struct RestoreSeedSheet: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.white)
                     }
+                }
+            }
+            .sheet(isPresented: $showPartialWarningSheet) {
+                PartialRecoveryWarningSheet {
+                    Task { await restoreWallet() }
                 }
             }
             .sheet(isPresented: $showLearnMoreSheet) {
@@ -175,38 +186,6 @@ struct RestoreSeedSheet: View {
             }
         }
         .preferredColorScheme(.dark)
-    }
-
-    // MARK: - Subviews
-
-    private var warningCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.orange)
-
-                Text(String(localized: "warning_partial_recovery", defaultValue: "Onchain Recovery Notice"))
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-
-            Text(String(
-                localized: "warning_restore_desc",
-                defaultValue: "Restoring from seed recovers onchain funds. Active Lightning channels cannot be recovered via seed alone and will require LSP settlement."
-            ))
-            .font(.system(size: 13))
-            .foregroundStyle(Color(white: 0.72))
-            .lineSpacing(2.5)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.orange.opacity(0.24), lineWidth: 1)
-        )
     }
 
     // MARK: - Synchronization & Actions

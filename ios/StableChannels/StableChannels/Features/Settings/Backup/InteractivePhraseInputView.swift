@@ -3,11 +3,12 @@ import SwiftUI
 struct InteractivePhraseInputView: View {
     @Binding var committedWords: [String]
     @Binding var currentInput: String
-    @FocusState private var focusedBox: Int?
     let onCommitPhrase: ([String]) -> Void
     let onPaste: () -> Void
     let onClearAll: () -> Void
 
+    @FocusState private var isAppendFocused: Bool
+    @FocusState private var editingBoxIndex: Int?
     @State private var editingIndex: Int? = nil
     @State private var editingText: String = ""
 
@@ -53,8 +54,8 @@ struct InteractivePhraseInputView: View {
         committedWords.count == 24 && currentInput.isEmpty && editingIndex == nil
     }
 
-    private var isAnyFieldFocused: Bool {
-        focusedBox != nil
+    private var isKeyboardActive: Bool {
+        isAppendFocused || editingBoxIndex != nil
     }
 
     var body: some View {
@@ -68,12 +69,12 @@ struct InteractivePhraseInputView: View {
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
                             .stroke(
                                 hasError ? Color
-                                    .red : (isAnyFieldFocused ? Color.white.opacity(0.24) : Color.white.opacity(0.08)),
+                                    .red : (isKeyboardActive ? Color.white.opacity(0.24) : Color.white.opacity(0.08)),
                                 lineWidth: hasError ? 1.5 : 1
                             )
                     )
 
-                if committedWords.isEmpty && currentInput.isEmpty && !isAnyFieldFocused {
+                if committedWords.isEmpty && currentInput.isEmpty && !isKeyboardActive {
                     // Initial Clean Text Input Placeholder
                     Text(String(
                         localized: "restore_placeholder_metamask",
@@ -99,7 +100,7 @@ struct InteractivePhraseInputView: View {
                                     .fixedSize()
 
                                 TextField("", text: $editingText)
-                                    .focused($focusedBox, equals: index)
+                                    .focused($editingBoxIndex, equals: index)
                                     .textInputAutocapitalization(.never)
                                     .autocorrectionDisabled()
                                     .font(.system(size: 13, weight: .medium, design: .monospaced))
@@ -156,7 +157,7 @@ struct InteractivePhraseInputView: View {
                         }
                     }
 
-                    // Active Typing Slot for the NEXT new word (visible when not editing an earlier box)
+                    // Persistent Append Box for continuous typing without keyboard dismiss/reopen
                     if committedWords.count < 24 && editingIndex == nil {
                         HStack(spacing: 4) {
                             Text("\(committedWords.count + 1).")
@@ -165,7 +166,7 @@ struct InteractivePhraseInputView: View {
                                 .fixedSize()
 
                             TextField("", text: $currentInput)
-                                .focused($focusedBox, equals: committedWords.count)
+                                .focused($isAppendFocused)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
                                 .font(.system(size: 13, weight: .medium, design: .monospaced))
@@ -191,18 +192,18 @@ struct InteractivePhraseInputView: View {
                         )
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            focusedBox = committedWords.count
+                            isAppendFocused = true
                         }
                     }
                 }
                 .padding(14)
-                .opacity((committedWords.isEmpty && currentInput.isEmpty && !isAnyFieldFocused) ? 0 : 1)
+                .opacity((committedWords.isEmpty && currentInput.isEmpty && !isKeyboardActive) ? 0 : 1)
             }
             .frame(minHeight: committedWords.count >= 12 ? 240 : 170)
             .contentShape(Rectangle())
             .onTapGesture {
                 if !isFull24 && editingIndex == nil {
-                    focusedBox = committedWords.count
+                    isAppendFocused = true
                 }
             }
 
@@ -257,7 +258,7 @@ struct InteractivePhraseInputView: View {
                         currentInput = ""
                         editingIndex = nil
                         editingText = ""
-                        focusedBox = 0
+                        isAppendFocused = true
                     } label: {
                         Text(String(localized: "button_clear_all", defaultValue: "Clear all"))
                             .font(.system(size: 15, weight: .semibold))
@@ -286,9 +287,10 @@ struct InteractivePhraseInputView: View {
 
     private func startEditing(at index: Int) {
         guard index >= 0 && index < committedWords.count else { return }
+        isAppendFocused = false
         editingIndex = index
         editingText = committedWords[index]
-        focusedBox = index
+        editingBoxIndex = index
     }
 
     private func handleEditingTextChanged(_ newValue: String, at index: Int) {
@@ -301,8 +303,9 @@ struct InteractivePhraseInputView: View {
                 committedWords.remove(at: index)
                 editingIndex = nil
                 editingText = ""
+                editingBoxIndex = nil
                 onCommitPhrase(committedWords)
-                focusedBox = committedWords.count
+                isAppendFocused = true
                 return
             }
             let firstWord = words[0].lowercased()
@@ -310,14 +313,13 @@ struct InteractivePhraseInputView: View {
                 committedWords[index] = firstWord
                 editingIndex = nil
                 editingText = ""
+                editingBoxIndex = nil
                 onCommitPhrase(committedWords)
                 // Move focus to next box or append slot
                 if index + 1 < committedWords.count {
                     startEditing(at: index + 1)
                 } else if committedWords.count < 24 {
-                    focusedBox = committedWords.count
-                } else {
-                    focusedBox = nil
+                    isAppendFocused = true
                 }
             } else {
                 editingText = firstWord
@@ -344,9 +346,7 @@ struct InteractivePhraseInputView: View {
                 currentInput = ""
                 onCommitPhrase(committedWords)
                 if committedWords.count >= 24 {
-                    focusedBox = nil
-                } else {
-                    focusedBox = committedWords.count
+                    isAppendFocused = false
                 }
             } else if words.count == 1 {
                 currentInput = words[0].lowercased()
@@ -368,22 +368,19 @@ struct InteractivePhraseInputView: View {
             committedWords[editIdx] = word
             editingIndex = nil
             editingText = ""
+            editingBoxIndex = nil
             onCommitPhrase(committedWords)
             if editIdx + 1 < committedWords.count {
                 startEditing(at: editIdx + 1)
             } else if committedWords.count < 24 {
-                focusedBox = committedWords.count
-            } else {
-                focusedBox = nil
+                isAppendFocused = true
             }
         } else if committedWords.count < 24 {
             committedWords.append(word)
             currentInput = ""
             onCommitPhrase(committedWords)
             if committedWords.count >= 24 {
-                focusedBox = nil
-            } else {
-                focusedBox = committedWords.count
+                isAppendFocused = false
             }
         }
     }

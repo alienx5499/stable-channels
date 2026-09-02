@@ -152,6 +152,7 @@
 		96B467E3F04FC01EB23B8413 /* FundWalletView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 840E14EF06B6DF0135F2BE70 /* FundWalletView.swift */; };
 		96F38A820CB6644940199C95 /* KeychainAccess in Frameworks */ = {isa = PBXBuildFile; productRef = 79D34B41CFF9ABC3C914B624 /* KeychainAccess */; };
 		9EBF713364DF88022CB4F1D0 /* RestoreSeedSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55E70A76A6F35E1A6677742F /* RestoreSeedSheet.swift */; };
+		49AD1B782FEE82000015A7D1 /* PartialRecoveryWarningSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49AD1B782FEE82000015A7D0 /* PartialRecoveryWarningSheet.swift */; };
 		A20400000000000000000002 /* TradeProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20400000000000000000001 /* TradeProtocol.swift */; };
 		A20400000000000000000003 /* TradeProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20400000000000000000001 /* TradeProtocol.swift */; };
 		A576FC086B9C883563FBE05A /* LSPSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 134775C01F3C51CA39B262FC /* LSPSettingsView.swift */; };
@@ -323,6 +324,7 @@
 		4F22F6639A59D4B86A959586 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		5194C003A28A4B2941C7AC40 /* CloudBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudBackupService.swift; sourceTree = "<group>"; };
 		55E70A76A6F35E1A6677742F /* RestoreSeedSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestoreSeedSheet.swift; sourceTree = "<group>"; };
+		49AD1B782FEE82000015A7D0 /* PartialRecoveryWarningSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartialRecoveryWarningSheet.swift; sourceTree = "<group>"; };
 		5AFFF3730F0DCCB9662892DE /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		5E0D4B3FBC893E4863B95AB9 /* LSPService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LSPService.swift; sourceTree = "<group>"; };
 		61BB0D1D623E0794FC1ED6ED /* NodeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeService.swift; sourceTree = "<group>"; };
@@ -507,6 +509,7 @@
 				49AD1B722FEE82000015A7D0 /* InteractivePhraseInputView.swift */,
 				F7A322E98DBC403722CD1C6A /* RestoreBackupSheet.swift */,
 				55E70A76A6F35E1A6677742F /* RestoreSeedSheet.swift */,
+				49AD1B782FEE82000015A7D0 /* PartialRecoveryWarningSheet.swift */,
 			);
 			path = Backup;
 			sourceTree = "<group>";
@@ -1040,6 +1043,7 @@
 				C6695312119E768D5A04925A /* RestoreBackupSheet.swift in Sources */,
 				495CB3FC3013F15600560837 /* MempoolWebSocketProtocol.swift in Sources */,
 				9EBF713364DF88022CB4F1D0 /* RestoreSeedSheet.swift in Sources */,
+				49AD1B782FEE82000015A7D1 /* PartialRecoveryWarningSheet.swift in Sources */,
 				10B6FDC89D0F405959F39079 /* SeedWordGridView.swift in Sources */,
 				495CB3FF3017724E00560837 /* ReconnectionManager.swift in Sources */,
 				495CB4003017724E00560837 /* ProcessedTxStore.swift in Sources */,
