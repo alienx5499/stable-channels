@@ -46,8 +46,10 @@ struct SendView: View {
         } else if trimmed.hasPrefix("bc1") || trimmed.hasPrefix("1") || trimmed.hasPrefix("3") || trimmed
             .hasPrefix("tb1") {
             return .onchain
-        } else if let target = lnurlService.parseInput(input) {
-            return .lnurl(target)
+        } else if trimmed.contains("@") || trimmed.hasPrefix("lnurl1") || trimmed.hasPrefix("http") {
+            if let target = lnurlService.parseInput(input) {
+                return .lnurl(target)
+            }
         }
         return .unknown
     }
@@ -384,7 +386,7 @@ struct SendView: View {
                                     }
                                 }
 
-                                if params.minSendable != params.maxSendable {
+                                if params.hasCustomSendBounds && params.minSendable != params.maxSendable {
                                     HStack {
                                         Text(String(localized: "label_send_range", defaultValue: "Send range"))
                                             .foregroundStyle(.secondary)
@@ -393,6 +395,16 @@ struct SendView: View {
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
+                                }
+
+                                if displaySats > 0 && (displaySats < params.minSats || displaySats > params.maxSats) {
+                                    Text(
+                                        displaySats < params.minSats
+                                            ? "Minimum is \(params.minSats.formatted()) sats"
+                                            : "Maximum is \(params.maxSats.formatted()) sats"
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.red)
                                 }
 
                                 if let commentAllowed = params.commentAllowed, commentAllowed > 0 {
@@ -525,8 +537,14 @@ struct SendView: View {
         switch detectedType {
         case .bolt11:
             return isAmountlessBolt11 && manualAmountMsat == 0
-        case .bolt12, .onchain, .lnurl:
+        case .bolt12, .onchain:
             return displaySats == 0
+        case .lnurl:
+            guard displaySats > 0 else { return true }
+            if let params = lnurlParams {
+                return displaySats < params.minSats || displaySats > params.maxSats
+            }
+            return false
         default:
             return false
         }

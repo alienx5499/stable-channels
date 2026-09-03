@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Models
 
 /// Represents a parsed LNURL or Lightning Address destination.
-enum LNURLTarget: Equatable {
+enum LNURLTarget: Equatable, Hashable {
     case lightningAddress(handle: String, domain: String, url: URL)
     case lnurlPay(url: URL)
 
@@ -43,6 +43,11 @@ struct LNURLPayParams: Codable, Equatable {
 
     var maxSats: UInt64 {
         maxSendable / 1000
+    }
+
+    /// True if the recipient has custom non-default bounds (not just the typical 1 sat to ~1 BTC range).
+    var hasCustomSendBounds: Bool {
+        minSats > 1 || maxSats < 21_000_000
     }
 
     /// Extracts the "text/plain" description from the LUD-06 metadata JSON string.
@@ -125,19 +130,18 @@ final class LNURLService: LNURLServiceProtocol {
             clean = String(clean.dropFirst("lightning:".count))
         }
 
-        // 1. Check for Lightning Address: user@domain.com (LUD-16)
-        let emailPattern = "^[a-zA-Z0-9_.+-]+@([a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+)$"
-        if let regex = try? NSRegularExpression(pattern: emailPattern),
-           regex.firstMatch(in: clean, range: NSRange(clean.startIndex..., in: clean)) != nil {
-            let parts = clean.split(separator: "@", maxSplits: 1).map(String.init)
-            if parts.count == 2 {
-                let username = parts[0]
-                let domain = parts[1]
-                let isLocalOrOnion = domain.hasSuffix(".onion") || domain.hasPrefix("localhost") || domain
+        // 1. Fast Lightning Address parsing: user@domain.com (LUD-16)
+        if let atIndex = clean.firstIndex(of: "@") {
+            let handle = clean[..<atIndex]
+            let domain = clean[clean.index(after: atIndex)...]
+            if !handle.isEmpty, !domain.isEmpty, domain.contains(".") {
+                let domainStr = String(domain)
+                let handleStr = String(handle)
+                let isLocalOrOnion = domainStr.hasSuffix(".onion") || domainStr.hasPrefix("localhost") || domainStr
                     .hasPrefix("127.0.0.1")
                 let scheme = isLocalOrOnion ? "http" : "https"
-                if let url = URL(string: "\(scheme)://\(domain)/.well-known/lnurlp/\(username)") {
-                    return .lightningAddress(handle: username, domain: domain, url: url)
+                if let url = URL(string: "\(scheme)://\(domainStr)/.well-known/lnurlp/\(handleStr)") {
+                    return .lightningAddress(handle: handleStr, domain: domainStr, url: url)
                 }
             }
         }
@@ -204,8 +208,11 @@ final class LNURLService: LNURLServiceProtocol {
 
     // MARK: - Fetch BOLT11 Invoice (LUD-06 Step 2)
 
-    func fetchInvoice(callback: String, amountMsat: UInt64,
-                      comment: String? = nil) async throws -> LNURLPayInvoiceResponse {
+    func fetchInvoice(
+        callback: String,
+        amountMsat: UInt64,
+        comment: String? = nil
+    ) async throws -> LNURLPayInvoiceResponse {
         guard var components = URLComponents(string: callback) else {
             throw LNURLError.invalidTarget
         }

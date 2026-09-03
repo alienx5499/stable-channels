@@ -1,15 +1,18 @@
 import Foundation
 
-/// BIP-173 / BIP-350 compliant Bech32 and Bech32m encoder and decoder.
-/// Used for decoding LNURL-pay strings (LUD-01).
+/// High-performance, zero-dependency BIP-173 / BIP-350 Bech32 and Bech32m encoder and decoder.
+/// Optimized for low-latency LNURL-pay and Lightning Address resolution.
 enum Bech32 {
     private static let charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
-    private static let charsetMap: [Character: UInt8] = {
-        var map = [Character: UInt8]()
-        for (i, char) in charset.enumerated() {
-            map[char] = UInt8(i)
+
+    /// Direct O(1) 128-byte ASCII character lookup table (avoids Unicode hash maps and allocations).
+    private static let asciiLookupTable: [Int8] = {
+        var table = [Int8](repeating: -1, count: 128)
+        let charsetBytes = Array(charset.utf8)
+        for (index, byte) in charsetBytes.enumerated() {
+            table[Int(byte)] = Int8(index)
         }
-        return map
+        return table
     }()
 
     enum Error: Swift.Error, LocalizedError {
@@ -38,38 +41,35 @@ enum Bech32 {
         }
     }
 
-    // MARK: - Polymod Checksum
+    // MARK: - Streaming Polymod (Zero-Allocation)
 
-    private static func polymod(_ values: [UInt8]) -> UInt32 {
+    @inline(__always)
+    private static func polymodStep(_ chk: inout UInt32, value: UInt8) {
+        let b = chk >> 25
+        chk = ((chk & 0x1FFFFFF) << 5) ^ UInt32(value)
+        if (b & 0x01) != 0 { chk ^= 0x3B6A57B2 }
+        if (b & 0x02) != 0 { chk ^= 0x26508E6D }
+        if (b & 0x04) != 0 { chk ^= 0x1EA119FA }
+        if (b & 0x08) != 0 { chk ^= 0x3D4233DD }
+        if (b & 0x10) != 0 { chk ^= 0x2A1462B3 }
+    }
+
+    private static func verifyChecksum(hrp: Substring.UTF8View, data: [UInt8]) -> Bool {
         var chk: UInt32 = 1
-        let generator: [UInt32] = [0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3]
-        for v in values {
-            let b = chk >> 25
-            chk = ((chk & 0x1FFFFFF) << 5) ^ UInt32(v)
-            for i in 0..<5 {
-                if ((b >> i) & 1) != 0 {
-                    chk ^= generator[i]
-                }
-            }
+        // Stream hrp high 3 bits
+        for byte in hrp {
+            polymodStep(&chk, value: byte >> 5)
         }
-        return chk
-    }
-
-    private static func hrpExpand(_ hrp: String) -> [UInt8] {
-        var ret = [UInt8]()
-        let scalars = hrp.unicodeScalars
-        for scalar in scalars {
-            ret.append(UInt8(scalar.value >> 5))
+        polymodStep(&chk, value: 0)
+        // Stream hrp low 5 bits
+        for byte in hrp {
+            polymodStep(&chk, value: byte & 31)
         }
-        ret.append(0)
-        for scalar in scalars {
-            ret.append(UInt8(scalar.value & 31))
+        // Stream data values
+        for val in data {
+            polymodStep(&chk, value: val)
         }
-        return ret
-    }
-
-    private static func verifyChecksum(hrp: String, data: [UInt8]) -> Bool {
-        polymod(hrpExpand(hrp) + data) == 1
+        return chk == 1
     }
 
     // MARK: - 5-bit to 8-bit bit conversion
@@ -79,6 +79,7 @@ enum Bech32 {
         var acc = 0
         var bits = 0
         var ret = [UInt8]()
+        ret.reserveCapacity((data.count * fromBits + toBits - 1) / toBits)
         let maxv = (1 << toBits) - 1
         let maxAcc = (1 << (fromBits + toBits - 1)) - 1
 
@@ -114,36 +115,46 @@ enum Bech32 {
             throw Error.invalidLength
         }
 
-        let isLower = trimmed.lowercased() == trimmed
-        let isUpper = trimmed.uppercased() == trimmed
-        guard isLower || isUpper else {
-            throw Error.invalidCharacter(trimmed.first(where: { $0.isUppercase }) ?? "A")
+        var hasLower = false
+        var hasUpper = false
+        for byte in trimmed.utf8 {
+            if byte >= 0x61 && byte <= 0x7A { hasLower = true }
+            if byte >= 0x41 && byte <= 0x5A { hasUpper = true }
+            if hasLower && hasUpper {
+                throw Error.invalidCharacter(trimmed.first(where: { $0.isUppercase }) ?? "A")
+            }
         }
 
-        let str = trimmed.lowercased()
-        guard let pos = str.lastIndex(of: "1") else {
+        let lowercased = trimmed.lowercased()
+        guard let pos = lowercased.lastIndex(of: "1") else {
             throw Error.missingHrp
         }
 
-        let hrp = String(str[..<pos])
+        let hrp = lowercased[..<pos]
         guard !hrp.isEmpty else {
             throw Error.missingHrp
         }
 
-        let dataPart = str[str.index(after: pos)...]
+        let dataPart = lowercased[lowercased.index(after: pos)...]
         guard dataPart.count >= 6 else {
             throw Error.invalidLength
         }
 
         var values = [UInt8]()
-        for c in dataPart {
-            guard let val = charsetMap[c] else {
-                throw Error.invalidCharacter(c)
+        values.reserveCapacity(dataPart.count)
+
+        for char in dataPart {
+            guard let asciiVal = char.asciiValue, asciiVal < 128 else {
+                throw Error.invalidCharacter(char)
             }
-            values.append(val)
+            let val = asciiLookupTable[Int(asciiVal)]
+            guard val >= 0 else {
+                throw Error.invalidCharacter(char)
+            }
+            values.append(UInt8(val))
         }
 
-        guard verifyChecksum(hrp: hrp, data: values) else {
+        guard verifyChecksum(hrp: hrp.utf8, data: values) else {
             throw Error.invalidChecksum
         }
 
@@ -153,7 +164,7 @@ enum Bech32 {
             throw Error.bitsConversionFailed
         }
 
-        return (hrp, Data(converted8Bit))
+        return (String(hrp), Data(converted8Bit))
     }
 
     /// Decodes an LNURL bech32 string (`lnurl1...`) into an HTTPS/HTTP `URL`.
