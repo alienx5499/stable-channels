@@ -36,38 +36,38 @@ struct RestoreSeedSheet: View {
                 VStack(spacing: 0) {
                     ScrollView(showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 20) {
-                            // Centered Header with Menu Recovery Icon
-                            VStack(spacing: 12) {
-                                Image(systemName: "arrow.uturn.backward.circle.fill")
-                                    .font(.system(size: 52))
-                                    .foregroundStyle(.orange)
+                            // Header: [Icon] Restore from Seed
+                            VStack(spacing: 8) {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "arrow.uturn.backward.circle.fill")
+                                        .font(.system(size: 24, weight: .semibold))
+                                        .foregroundStyle(.orange)
 
-                                VStack(spacing: 6) {
                                     Text(String(localized: "title_restore_seed", defaultValue: "Restore from Seed"))
-                                        .font(.system(size: 26, weight: .bold))
+                                        .font(.system(size: 24, weight: .bold))
                                         .foregroundStyle(.white)
+                                }
 
-                                    HStack(spacing: 6) {
-                                        Text(String(
-                                            localized: "instruction_restore",
-                                            defaultValue: "Enter your 12 or 24-word seed phrase."
-                                        ))
-                                        .font(.system(size: 15))
-                                        .foregroundStyle(Color(uiColor: .lightGray))
+                                HStack(spacing: 6) {
+                                    Text(String(
+                                        localized: "instruction_restore",
+                                        defaultValue: "Enter your 12 or 24-word seed phrase."
+                                    ))
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(Color(uiColor: .lightGray))
 
-                                        Button {
-                                            showLearnMoreSheet = true
-                                        } label: {
-                                            Image(systemName: "info.circle")
-                                                .font(.system(size: 15))
-                                                .foregroundStyle(Color(white: 0.6))
-                                        }
+                                    Button {
+                                        showLearnMoreSheet = true
+                                    } label: {
+                                        Image(systemName: "info.circle")
+                                            .font(.system(size: 15))
+                                            .foregroundStyle(Color(white: 0.6))
                                     }
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.top, 16)
-                            .padding(.bottom, 4)
+                            .padding(.top, 14)
+                            .padding(.bottom, 2)
 
                             // Interactive Recovery Phrase Input View
                             InteractivePhraseInputView(
