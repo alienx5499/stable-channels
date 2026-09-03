@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C04290FC8CF14F5892A8096E /* Bech32.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D87D41F275D4213935ED5F3 /* Bech32.swift */; };
+		6935183DA7EE490D9EE1D79C /* LNURLService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E7B725A62CF486D911BC23F /* LNURLService.swift */; };
+		FACD431C722C4DDBB50E38B1 /* Bech32Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0E07E685BB44AC1963E43AD /* Bech32Tests.swift */; };
+		7FF4A31D31894FE9AA29EFF5 /* LNURLServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9D39053B5A746B39359B941 /* LNURLServiceTests.swift */; };
 		02EB2F2AFFACF5F588CF7912 /* CodeScanner in Frameworks */ = {isa = PBXBuildFile; productRef = C5B41595048B8AA9D3617B42 /* CodeScanner */; };
 		05856856E6E8EF9E688EFA20 /* PriceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0446A88D1E083A380EDC5436 /* PriceService.swift */; };
 		06C3B1697681F176DD44C146 /* StableChannelsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B785A33E02FD999CB62019AD /* StableChannelsApp.swift */; };
@@ -188,6 +192,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		8D87D41F275D4213935ED5F3 /* Bech32.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bech32.swift; sourceTree = "<group>"; };
+		6E7B725A62CF486D911BC23F /* LNURLService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LNURLService.swift; sourceTree = "<group>"; };
+		C0E07E685BB44AC1963E43AD /* Bech32Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bech32Tests.swift; sourceTree = "<group>"; };
+		D9D39053B5A746B39359B941 /* LNURLServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LNURLServiceTests.swift; sourceTree = "<group>"; };
 		0446A88D1E083A380EDC5436 /* PriceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriceService.swift; sourceTree = "<group>"; };
 		07579A3C5174C8FED2BFCFBF /* NotificationService.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NotificationService.entitlements; sourceTree = "<group>"; };
 		134775C01F3C51CA39B262FC /* LSPSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LSPSettingsView.swift; sourceTree = "<group>"; };
@@ -595,6 +603,7 @@
 		7EE46C95963B6C9F86006346 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				6E7B725A62CF486D911BC23F /* LNURLService.swift */,
 				CC3C25041B1DA315BD7CD2E7 /* AuditService.swift */,
 				49E4D8A02FED848F002AF338 /* BackupError.swift */,
 				49E4D8A22FED84B7002AF338 /* BackupServiceProtocol.swift */,
@@ -652,6 +661,7 @@
 		AD3E779FC98D09AA36FFCAE9 /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				8D87D41F275D4213935ED5F3 /* Bech32.swift */,
 				4F22F6639A59D4B86A959586 /* Constants.swift */,
 				AD425F9D6479B95B2258FCAE /* Extensions.swift */,
 				496A44452FCD5845005AF12F /* InputSanitizer.swift */,
@@ -719,6 +729,8 @@
 		F11CF0F21D3319E86AF791B6 /* StableChannelsTests */ = {
 			isa = PBXGroup;
 			children = (
+				C0E07E685BB44AC1963E43AD /* Bech32Tests.swift */,
+				D9D39053B5A746B39359B941 /* LNURLServiceTests.swift */,
 				49D4DB072FD02F4E0074ACD2 /* CloseTxidResolverTests.swift */,
 				49D4DB082FD02F4E0074ACD2 /* DatabaseServiceTests.swift */,
 				49DAFB3B2FDB6587003BE0EB /* FeeRateServiceTests.swift */,
@@ -861,6 +873,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FACD431C722C4DDBB50E38B1 /* Bech32Tests.swift in Sources */,
+				7FF4A31D31894FE9AA29EFF5 /* LNURLServiceTests.swift in Sources */,
 				490224CC302F90A500DF84AA /* PriceServiceTests.swift in Sources */,
 				49FEF36D30124CEE0089850F /* MempoolWebSocketServiceTests.swift in Sources */,
 				49D4DB092FD02F4E0074ACD2 /* CloseTxidResolverTests.swift in Sources */,
@@ -880,6 +894,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C04290FC8CF14F5892A8096E /* Bech32.swift in Sources */,
+				6935183DA7EE490D9EE1D79C /* LNURLService.swift in Sources */,
 				62340228B969D280C66FD733 /* AppState.swift in Sources */,
 				499E5371301A92900050E3F8 /* SettingsIconBadgeView.swift in Sources */,
 				499E5372301A92900050E3F8 /* SettingsBannerView.swift in Sources */,

@@ -1,7 +1,8 @@
+import CoreImage
+import Foundation
+import LDKNode
 import SwiftUI
 import UIKit
-import LDKNode
-import CoreImage
 
 struct SendView: View {
     @Environment(AppState.self) private var appState
@@ -16,10 +17,17 @@ struct SendView: View {
     @State private var qrAlertMessage = ""
     @State private var feeRateSatVb: UInt64?
 
-    private enum InputType {
+    // LNURL / Lightning Address States
+    @State private var lnurlParams: LNURLPayParams?
+    @State private var isLoadingLNURL = false
+    @State private var lnurlComment = ""
+    private let lnurlService = LNURLService()
+
+    private enum InputType: Equatable {
         case bolt11
         case bolt12
         case onchain
+        case lnurl(LNURLTarget)
         case unknown
     }
 
@@ -28,6 +36,9 @@ struct SendView: View {
         if trimmed.hasPrefix("bitcoin:") {
             trimmed = String(trimmed.dropFirst(8))
         }
+        if trimmed.hasPrefix("lightning:") {
+            trimmed = String(trimmed.dropFirst(10))
+        }
         if trimmed.hasPrefix("lnbc") || trimmed.hasPrefix("lntb") || trimmed.hasPrefix("lnts") {
             return .bolt11
         } else if trimmed.hasPrefix("lno") {
@@ -35,6 +46,8 @@ struct SendView: View {
         } else if trimmed.hasPrefix("bc1") || trimmed.hasPrefix("1") || trimmed.hasPrefix("3") || trimmed
             .hasPrefix("tb1") {
             return .onchain
+        } else if let target = lnurlService.parseInput(input) {
+            return .lnurl(target)
         }
         return .unknown
     }
@@ -65,7 +78,7 @@ struct SendView: View {
                 return msat / 1000
             }
             return manualAmountMsat / 1000
-        case .bolt12, .onchain:
+        case .bolt12, .onchain, .lnurl:
             return convertedSats(fromUSD: amountSats, price: appState.accountingBTCPrice) ?? 0
         case .unknown:
             return 0
@@ -168,7 +181,7 @@ struct SendView: View {
                 Section(String(localized: "header_invoice_address", defaultValue: "To")) {
                     TextField(
                         String(localized: "placeholder_invoice",
-                               defaultValue: "Invoice or onchain address"),
+                               defaultValue: "Invoice, address, or Lightning Address"),
                         text: $input,
                         axis: .vertical
                     )
@@ -242,6 +255,7 @@ struct SendView: View {
                                     }
                                 }
                             }
+
                         case .bolt12:
                             Label(
                                 String(localized: "label_bolt12_offer", defaultValue: "Bolt12 Offer"),
@@ -276,6 +290,7 @@ struct SendView: View {
                                         .foregroundStyle(.secondary)
                                 }
                             }
+
                         case .onchain:
                             Label(
                                 String(localized: "label_on_chain_address", defaultValue: "Onchain Address"),
@@ -315,6 +330,83 @@ struct SendView: View {
                                     .font(.caption)
                                     .foregroundStyle(.orange)
                             }
+
+                        case let .lnurl(target):
+                            HStack {
+                                Label(
+                                    target.displayDestination,
+                                    systemImage: "at"
+                                )
+                                .foregroundStyle(.purple)
+
+                                Spacer()
+
+                                if isLoadingLNURL {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                }
+                            }
+
+                            if let params = lnurlParams {
+                                if let desc = params.plainTextDescription, !desc.isEmpty {
+                                    Text(desc)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                TextField(
+                                    String(localized: "placeholder_amount_usd", defaultValue: "Amount (USD)"),
+                                    text: $amountSats
+                                )
+                                .keyboardType(.decimalPad)
+                                .autocorrectionDisabled()
+
+                                if let usd = displayUSD {
+                                    HStack {
+                                        Text(String(localized: "label_amount", defaultValue: "Amount"))
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
+                                        VStack(alignment: .trailing, spacing: 2) {
+                                            Text(usd.usdFormatted)
+                                                .fontWeight(.medium)
+                                            Text("\(displaySats.btcSpacedFormatted) BTC")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    HStack {
+                                        Text(String(localized: "label_fee", defaultValue: "Fee"))
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
+                                        Text(lightningFeeEstimateText(for: displaySats))
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+
+                                if params.minSendable != params.maxSendable {
+                                    HStack {
+                                        Text(String(localized: "label_send_range", defaultValue: "Send range"))
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
+                                        Text("\(params.minSats) – \(params.maxSats) sats")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+
+                                if let commentAllowed = params.commentAllowed, commentAllowed > 0 {
+                                    TextField(
+                                        String(
+                                            localized: "placeholder_lnurl_comment",
+                                            defaultValue: "Add a note (optional)"
+                                        ),
+                                        text: $lnurlComment
+                                    )
+                                    .autocorrectionDisabled()
+                                }
+                            }
+
                         case .unknown:
                             Label(
                                 String(localized: "label_unrecognized_format", defaultValue: "Unrecognized format"),
@@ -330,8 +422,6 @@ struct SendView: View {
                                 .foregroundStyle(.red)
                         }
                     }
-
-                    // Send button is below the form as a sticky bar
                 }
 
                 if success {
@@ -376,7 +466,7 @@ struct SendView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.blue)
-                    .disabled(isSending || success || needsAmount)
+                    .disabled(isSending || success || needsAmount || isLoadingLNURL)
                     .padding(.horizontal)
                     .padding(.bottom, 8)
                 }
@@ -395,6 +485,29 @@ struct SendView: View {
             .task {
                 feeRateSatVb = await appState.feeRateService.currentRate()
             }
+            .task(id: input) {
+                if case let .lnurl(target) = detectedType {
+                    isLoadingLNURL = true
+                    errorMessage = nil
+                    do {
+                        let params = try await lnurlService.fetchPayParams(from: target)
+                        lnurlParams = params
+                        if params.minSendable == params.maxSendable {
+                            let fixedSats = params.minSats
+                            if appState.accountingBTCPrice > 0 {
+                                let usd = Double(fixedSats) / Double(Constants.satsInBTC) * appState.accountingBTCPrice
+                                amountSats = String(format: "%.2f", usd)
+                            }
+                        }
+                    } catch {
+                        errorMessage = error.localizedDescription
+                    }
+                    isLoadingLNURL = false
+                } else {
+                    lnurlParams = nil
+                    isLoadingLNURL = false
+                }
+            }
         }
     }
 
@@ -402,7 +515,7 @@ struct SendView: View {
         switch detectedType {
         case .bolt11:
             return isAmountlessBolt11 && manualAmountMsat == 0
-        case .bolt12, .onchain:
+        case .bolt12, .onchain, .lnurl:
             return displaySats == 0
         default:
             return false
@@ -430,7 +543,7 @@ struct SendView: View {
         case .onchain:
             requiresAuth = transactionAuth
             reason = "Confirm onchain withdrawal of all funds"
-        case .bolt11, .bolt12:
+        case .bolt11, .bolt12, .lnurl:
             requiresAuth = transactionAuth
             reason = "Confirm payment of \(displaySats) sats"
         default:
@@ -504,6 +617,50 @@ struct SendView: View {
                     amountUSD: amountUSD,
                     btcPrice: price > 0 ? price : nil,
                     counterparty: nil,
+                    status: "pending"
+                )
+                sentAmountSats = sats
+
+            case let .lnurl(target):
+                let price = appState.accountingBTCPrice
+                guard let sats = convertedSats(fromUSD: amountSats, price: price) else {
+                    throw untrustedPriceError()
+                }
+                let actualMsat = sats * 1000
+
+                guard let params = lnurlParams else {
+                    throw LNURLService.LNURLError.invalidResponse
+                }
+
+                guard actualMsat >= params.minSendable && actualMsat <= params.maxSendable else {
+                    throw LNURLService.LNURLError.amountOutOfBounds(minSats: params.minSats, maxSats: params.maxSats)
+                }
+
+                let comment = lnurlComment.trimmingCharacters(in: .whitespacesAndNewlines)
+                let invoiceResp = try await lnurlService.fetchInvoice(
+                    callback: params.callback,
+                    amountMsat: actualMsat,
+                    comment: comment.isEmpty ? nil : comment
+                )
+
+                let bolt11 = try Bolt11Invoice.fromStr(invoiceStr: invoiceResp.pr)
+                let invoiceMsat = bolt11.amountMilliSatoshis() ?? 0
+                let paymentId: PaymentId
+                if invoiceMsat > 0 {
+                    paymentId = try appState.nodeService.sendPayment(invoice: bolt11)
+                } else {
+                    paymentId = try appState.nodeService.sendPaymentUsingAmount(invoice: bolt11, amountMsat: actualMsat)
+                }
+
+                let amountUSD: Double? = price > 0 ? (Double(sats) / Double(Constants.satsInBTC)) * price : nil
+                _ = try? appState.databaseService?.paymentRepo.recordPayment(
+                    paymentId: "\(paymentId)",
+                    paymentType: "lightning",
+                    direction: "sent",
+                    amountMsat: actualMsat,
+                    amountUSD: amountUSD,
+                    btcPrice: price > 0 ? price : nil,
+                    counterparty: target.displayDestination,
                     status: "pending"
                 )
                 sentAmountSats = sats
