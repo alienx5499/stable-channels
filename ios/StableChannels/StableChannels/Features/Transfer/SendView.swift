@@ -21,7 +21,7 @@ struct SendView: View {
     @State private var lnurlParams: LNURLPayParams?
     @State private var isLoadingLNURL = false
     @State private var lnurlComment = ""
-    private let lnurlService = LNURLService()
+    var lnurlService: any LNURLServiceProtocol = LNURLService()
 
     private enum InputType: Equatable {
         case bolt11
