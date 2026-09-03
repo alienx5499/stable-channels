@@ -3419,6 +3419,17 @@
         }
       }
     },
+    "button_i_understand_restore" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "I Understand, Restore Wallet"
+          }
+        }
+      }
+    },
     "button_import_backup" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {
@@ -5326,6 +5337,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "删除备份"
+          }
+        }
+      }
+    },
+    "desc_partial_recovery_overview" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Restoring from a seed phrase only recovers onchain funds. Channel state cannot be restored."
           }
         }
       }
@@ -9916,9 +9938,6 @@
           }
         }
       }
-    },
-    "I Understand, Restore Wallet" : {
-
     },
     "icloud_backup" : {
       "extractionState" : "extracted_with_value",
@@ -18712,6 +18731,7 @@
 
     },
     "Partial Recovery Warning" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -20387,6 +20407,7 @@
       }
     },
     "Please withdraw all BTC before proceeding. Existing wallet data will be completely overwritten." : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -27207,6 +27228,17 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Open Channel Detected"
+          }
+        }
+      }
+    },
+    "title_partial_recovery_warning" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Partial Recovery Warning"
           }
         }
       }

@@ -20,10 +20,19 @@ struct RestoreSeedSheet: View {
     @State private var showLearnMoreSheet = false
     @State private var showPartialWarningSheet = false
 
+    private var allWords: [String] {
+        var words = committedWords
+        let trimmed = currentInput.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if !trimmed.isEmpty && BIP39WordList.isValidWord(trimmed) && words.count < 24 {
+            words.append(trimmed)
+        }
+        return words
+    }
+
     private var restoreValid: Bool {
-        guard currentInput.isEmpty else { return false }
-        if committedWords.count == SeedConstants.wordCount12 || committedWords.count == SeedConstants.wordCount24 {
-            return BIP39.isValid(committedWords.joined(separator: " "))
+        let words = allWords
+        if words.count == SeedConstants.wordCount12 || words.count == SeedConstants.wordCount24 {
+            return BIP39.isValid(words.joined(separator: " "))
         }
         return false
     }
@@ -101,7 +110,7 @@ struct RestoreSeedSheet: View {
 
                     // Bottom Action Button
                     Button {
-                        showPartialWarningSheet = true
+                        handleRestoreButtonTapped()
                     } label: {
                         if isRestoring {
                             HStack(spacing: 8) {
@@ -114,14 +123,14 @@ struct RestoreSeedSheet: View {
                         } else {
                             Text(String(localized: "button_restore", defaultValue: "Restore"))
                                 .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(restoreValid ? .black : Color.secondary)
+                                .foregroundStyle(restoreValid ? .black : Color(white: 0.45))
                         }
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
                     .background(restoreValid ? Color.white : Color(white: 0.18))
                     .clipShape(Capsule())
-                    .disabled(!restoreValid || isRestoring)
+                    .disabled(isRestoring)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 20)
                 }
@@ -230,19 +239,46 @@ struct RestoreSeedSheet: View {
         restoreError = nil
     }
 
+    private func handleRestoreButtonTapped() {
+        restoreError = nil
+        let words = allWords
+        if words.count != SeedConstants.wordCount12 && words.count != SeedConstants.wordCount24 {
+            restoreError = String(localized: "error_seed_word_count", defaultValue: "Please enter 12 or 24 words.")
+            return
+        }
+
+        let phrase = words.joined(separator: " ")
+        guard BIP39.isValid(phrase) else {
+            restoreError = String(
+                localized: "error_invalid_seed_phrase",
+                defaultValue: "Invalid Secret Recovery Phrase. Please check word spelling and order."
+            )
+            return
+        }
+
+        if words != committedWords {
+            committedWords = words
+            currentInput = ""
+            syncFields(from: words)
+        }
+
+        showPartialWarningSheet = true
+    }
+
     private func restoreWallet(acknowledgeForceClose: Bool = false) async {
         isRestoring = true
         restoreError = nil
 
-        let input = restoreMnemonic.trimmingCharacters(in: .whitespacesAndNewlines)
+        let words = allWords
+        let input = words.joined(separator: " ")
 
-        guard MnemonicUtils.isValidWordCount(input) else {
+        guard words.count == SeedConstants.wordCount12 || words.count == SeedConstants.wordCount24 else {
             isRestoring = false
             restoreError = String(localized: "error_seed_word_count", defaultValue: "Please enter 12 or 24 words.")
             return
         }
 
-        guard MnemonicUtils.isValidMnemonic(input) else {
+        guard BIP39.isValid(input) else {
             isRestoring = false
             restoreError = String(
                 localized: "error_invalid_seed_phrase",
