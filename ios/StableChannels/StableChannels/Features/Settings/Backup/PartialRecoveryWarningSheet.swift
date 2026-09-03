@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Apple-Grade Partial Recovery Warning Modal
+// MARK: - Apple-Grade Partial Recovery Warning Modal (Zero Gradients, Crisp System Typography)
 
 struct PartialRecoveryWarningSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -13,38 +13,14 @@ struct PartialRecoveryWarningSheet: View {
 
                 VStack(spacing: 0) {
                     ScrollView(showsIndicators: false) {
-                        VStack(spacing: 24) {
-                            // Hero Icon & Glow
-                            ZStack {
-                                Circle()
-                                    .fill(
-                                        RadialGradient(
-                                            colors: [Color.orange.opacity(0.25), Color.clear],
-                                            center: .center,
-                                            startRadius: 10,
-                                            endRadius: 55
-                                        )
-                                    )
-                                    .frame(width: 110, height: 110)
+                        VStack(spacing: 20) {
+                            // Flat System Icon
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 48, weight: .semibold))
+                                .foregroundStyle(.orange)
+                                .padding(.top, 24)
 
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.orange.opacity(0.15))
-                                        .frame(width: 72, height: 72)
-                                        .overlay(
-                                            Circle()
-                                                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-                                        )
-
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .font(.system(size: 34, weight: .semibold))
-                                        .foregroundStyle(.orange)
-                                        .shadow(color: .orange.opacity(0.5), radius: 12, x: 0, y: 4)
-                                }
-                            }
-                            .padding(.top, 16)
-
-                            // Title & Subtitle Lockup
+                            // Title & Overview Subtitle
                             VStack(spacing: 8) {
                                 Text(String(
                                     localized: "title_partial_recovery_warning",
@@ -56,43 +32,40 @@ struct PartialRecoveryWarningSheet: View {
 
                                 Text(String(
                                     localized: "desc_partial_recovery_overview",
-                                    defaultValue: "Restoring from a seed phrase only recovers onchain Bitcoin. Please review the details below before proceeding."
+                                    defaultValue: "Restoring from a seed phrase only recovers onchain funds. Channel state cannot be restored."
                                 ))
-                                .font(.system(size: 14))
+                                .font(.system(size: 15))
                                 .foregroundStyle(Color(uiColor: .lightGray))
                                 .multilineTextAlignment(.center)
                                 .lineSpacing(3)
-                                .padding(.horizontal, 20)
+                                .padding(.horizontal, 24)
                             }
 
-                            // Information Cards Stack
+                            // Structured Information Cards (Flat Inset Grouped Styling)
                             VStack(spacing: 12) {
-                                // 1. Lightning Channel Warning Card
+                                // 1. Lightning Channel State Notice
                                 infoCard(
                                     icon: "bolt.slash.fill",
                                     iconColor: .orange,
-                                    badgeBackground: Color.orange.opacity(0.12),
-                                    badgeBorder: Color.orange.opacity(0.25),
                                     title: "Lightning Channels Not Recovered",
                                     description: "This recovery will restore onchain funds but NOT Lightning channel state. Lightning funds will be lost and may require LSP force-close."
                                 )
 
-                                // 2. Overwrite & Withdrawal Warning Card
+                                // 2. Overwrite & Withdrawal Notice
                                 infoCard(
                                     icon: "exclamationmark.octagon.fill",
                                     iconColor: Color(red: 1.0, green: 0.35, blue: 0.35),
-                                    badgeBackground: Color.red.opacity(0.12),
-                                    badgeBorder: Color.red.opacity(0.25),
                                     title: "Existing Data Overwritten",
                                     description: "Please withdraw all BTC before proceeding. Existing wallet data will be completely overwritten."
                                 )
                             }
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 4)
                         }
                         .padding(.bottom, 24)
                     }
 
-                    // Bottom Action Stack
+                    // Bottom Actions
                     VStack(spacing: 10) {
                         Button(role: .destructive) {
                             dismiss()
@@ -114,7 +87,7 @@ struct PartialRecoveryWarningSheet: View {
                             dismiss()
                         } label: {
                             Text(String(localized: "button_cancel", defaultValue: "Cancel"))
-                                .font(.system(size: 15, weight: .medium))
+                                .font(.system(size: 16, weight: .medium))
                                 .foregroundStyle(Color(white: 0.65))
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 44)
@@ -132,7 +105,7 @@ struct PartialRecoveryWarningSheet: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 22))
+                            .font(.system(size: 24))
                             .foregroundStyle(Color(white: 0.35))
                     }
                 }
@@ -141,34 +114,21 @@ struct PartialRecoveryWarningSheet: View {
         .preferredColorScheme(.dark)
     }
 
-    // MARK: - Card Component
+    // MARK: - Inset Info Card
 
     private func infoCard(
         icon: String,
         iconColor: Color,
-        badgeBackground: Color,
-        badgeBorder: Color,
         title: String,
         description: String
     ) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            // Rounded Icon Badge
-            ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(badgeBackground)
-                    .frame(width: 36, height: 36)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(badgeBorder, lineWidth: 1)
-                    )
+            Image(systemName: icon)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(iconColor)
+                .frame(width: 24)
+                .padding(.top, 2)
 
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(iconColor)
-            }
-            .padding(.top, 2)
-
-            // Text Hierarchy
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.system(size: 15, weight: .semibold))
@@ -184,9 +144,9 @@ struct PartialRecoveryWarningSheet: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
     }

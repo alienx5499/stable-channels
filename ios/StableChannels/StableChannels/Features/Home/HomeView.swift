@@ -16,6 +16,7 @@ struct HomeView: View {
     @State private var notificationsEnabled = true
     @State private var receivePulse = false
     @State private var showReceiveHint = true
+    @State private var showDebugPartialRecovery = true
 
     var body: some View {
         NavigationStack {
@@ -104,6 +105,9 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showSendSheet) { SendView() }
         .sheet(isPresented: $showReceiveSheet) { ReceiveView() }
+        .sheet(isPresented: $showDebugPartialRecovery) {
+            PartialRecoveryWarningSheet(onConfirm: {})
+        }
         .sheet(isPresented: $showBuySheet) {
             BuyView(prefillAmountUSD: prefillTradeAmount)
         }
