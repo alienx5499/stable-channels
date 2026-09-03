@@ -170,6 +170,10 @@ final class LNURLService: LNURLServiceProtocol {
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await urlSession.data(for: request)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            throw CancellationError()
         } catch {
             throw LNURLError.networkError(error.localizedDescription)
         }
@@ -226,6 +230,10 @@ final class LNURLService: LNURLServiceProtocol {
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await urlSession.data(for: request)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            throw CancellationError()
         } catch {
             throw LNURLError.networkError(error.localizedDescription)
         }

@@ -389,7 +389,7 @@ struct SendView: View {
                                         Text(String(localized: "label_send_range", defaultValue: "Send range"))
                                             .foregroundStyle(.secondary)
                                         Spacer()
-                                        Text("\(params.minSats) – \(params.maxSats) sats")
+                                        Text("\(params.minSats.formatted()) – \(params.maxSats.formatted()) sats")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
@@ -487,10 +487,15 @@ struct SendView: View {
             }
             .task(id: input) {
                 if case let .lnurl(target) = detectedType {
+                    // Small debounce to avoid firing on intermediate keystrokes
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                    guard !Task.isCancelled else { return }
+
                     isLoadingLNURL = true
                     errorMessage = nil
                     do {
                         let params = try await lnurlService.fetchPayParams(from: target)
+                        guard !Task.isCancelled else { return }
                         lnurlParams = params
                         if params.minSendable == params.maxSendable {
                             let fixedSats = params.minSats
@@ -499,7 +504,12 @@ struct SendView: View {
                                 amountSats = String(format: "%.2f", usd)
                             }
                         }
+                    } catch is CancellationError {
+                        return
+                    } catch let urlError as URLError where urlError.code == .cancelled {
+                        return
                     } catch {
+                        guard !Task.isCancelled else { return }
                         errorMessage = error.localizedDescription
                     }
                     isLoadingLNURL = false

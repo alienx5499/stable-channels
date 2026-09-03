@@ -401,6 +401,16 @@
         }
       }
     },
+    "%llu – %llu sats" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$llu – %2$llu sats"
+          }
+        }
+      }
+    },
     "A fresh BTC/USD consensus is required before trading" : {
 
     },
@@ -16142,6 +16152,17 @@
         }
       }
     },
+    "label_send_range" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Send range"
+          }
+        }
+      }
+    },
     "label_status" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -19932,6 +19953,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "lnbc1..."
+          }
+        }
+      }
+    },
+    "placeholder_lnurl_comment" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Add a note (optional)"
           }
         }
       }
@@ -24312,6 +24344,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "订单失败"
+          }
+        }
+      }
+    },
+    "status_trade_rejected" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Order Rejected"
           }
         }
       }
