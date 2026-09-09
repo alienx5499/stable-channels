@@ -85,7 +85,6 @@
 		49D4DB062FD02F400074ACD2 /* CloseTxidResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D4DB052FD02F400074ACD2 /* CloseTxidResolver.swift */; };
 		49D4DB092FD02F4E0074ACD2 /* CloseTxidResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D4DB072FD02F4E0074ACD2 /* CloseTxidResolverTests.swift */; };
 		49D4DB0A2FD02F4E0074ACD2 /* DatabaseServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D4DB082FD02F4E0074ACD2 /* DatabaseServiceTests.swift */; };
-		5C279A022FEA00020074ACD2 /* SpliceRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C279A012FEA00010074ACD2 /* SpliceRepositoryTests.swift */; };
 		49D9C2E22FB6E52E00133509 /* BiometricService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D9C2E12FB6E52E00133509 /* BiometricService.swift */; };
 		49D9C2E42FB6F45600133509 /* AppAccessSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D9C2E32FB6F45600133509 /* AppAccessSettingsView.swift */; };
 		49DAFB3A2FDB5FEB003BE0EB /* FeeRateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49DAFB392FDB5FEB003BE0EB /* FeeRateService.swift */; };
@@ -99,6 +98,8 @@
 		49DDB0072FF0000100000001 /* StabilitySendRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49DDB0072FF0000200000001 /* StabilitySendRepository.swift */; };
 		49DDB0082FF0000100000001 /* PendingOperationRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49DDB0082FF0000200000001 /* PendingOperationRepository.swift */; };
 		49DDB0092FF0000100000001 /* HeaderRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49DDB0092FF0000200000001 /* HeaderRepository.swift */; };
+		49E245FF3051D20C00B5C6D5 /* WebSocketEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49E245FE3051D20C00B5C6D5 /* WebSocketEvents.swift */; };
+		49E246003051D20C00B5C6D5 /* WebSocketBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49E245FD3051D20C00B5C6D5 /* WebSocketBridge.swift */; };
 		49E3080F30080B78009B0014 /* TransactionLinkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49E3080E30080B78009B0014 /* TransactionLinkService.swift */; };
 		49E3081130080F3C009B0014 /* TxidResolutionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49E3081030080F3C009B0014 /* TxidResolutionService.swift */; };
 		49E4567E2FCA3E8B00B0CA85 /* QRCode in Frameworks */ = {isa = PBXBuildFile; productRef = 49E4567D2FCA3E8B00B0CA85 /* QRCode */; };
@@ -120,6 +121,7 @@
 		49FEF36D30124CEE0089850F /* MempoolWebSocketServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49FEF36C30124CEE0089850F /* MempoolWebSocketServiceTests.swift */; };
 		55681ED47BE9198B5635346A /* TradeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F10632049E3C904E518EDD2 /* TradeDetailView.swift */; };
 		581786C32C021D8FB9E63DC2 /* BalanceBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA3A67CDEA5F64D92ED8E602 /* BalanceBarView.swift */; };
+		5C279A022FEA00020074ACD2 /* SpliceRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C279A012FEA00010074ACD2 /* SpliceRepositoryTests.swift */; };
 		62340228B969D280C66FD733 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFC40949E35E9317ACA30E35 /* AppState.swift */; };
 		6410EE715C16CF8D006022EC /* MnemonicUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82EFF29BD58A394274F50B96 /* MnemonicUtils.swift */; };
 		6929CC2C37EEDC6219317621 /* TradeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6EF4DE5A43647E46CAAD52B /* TradeService.swift */; };
@@ -264,7 +266,6 @@
 		49D4DB052FD02F400074ACD2 /* CloseTxidResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloseTxidResolver.swift; sourceTree = "<group>"; };
 		49D4DB072FD02F4E0074ACD2 /* CloseTxidResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloseTxidResolverTests.swift; sourceTree = "<group>"; };
 		49D4DB082FD02F4E0074ACD2 /* DatabaseServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseServiceTests.swift; sourceTree = "<group>"; };
-		5C279A012FEA00010074ACD2 /* SpliceRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpliceRepositoryTests.swift; sourceTree = "<group>"; };
 		49D9C2E12FB6E52E00133509 /* BiometricService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricService.swift; sourceTree = "<group>"; };
 		49D9C2E32FB6F45600133509 /* AppAccessSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccessSettingsView.swift; sourceTree = "<group>"; };
 		49DAFB392FDB5FEB003BE0EB /* FeeRateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeeRateService.swift; sourceTree = "<group>"; };
@@ -278,6 +279,8 @@
 		49DDB0072FF0000200000001 /* StabilitySendRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StabilitySendRepository.swift; sourceTree = "<group>"; };
 		49DDB0082FF0000200000001 /* PendingOperationRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingOperationRepository.swift; sourceTree = "<group>"; };
 		49DDB0092FF0000200000001 /* HeaderRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderRepository.swift; sourceTree = "<group>"; };
+		49E245FD3051D20C00B5C6D5 /* WebSocketBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketBridge.swift; sourceTree = "<group>"; };
+		49E245FE3051D20C00B5C6D5 /* WebSocketEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketEvents.swift; sourceTree = "<group>"; };
 		49E3080E30080B78009B0014 /* TransactionLinkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionLinkService.swift; sourceTree = "<group>"; };
 		49E3081030080F3C009B0014 /* TxidResolutionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TxidResolutionService.swift; sourceTree = "<group>"; };
 		49E4567F2FCC596F00B0CA85 /* FullscreenQRZoomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullscreenQRZoomView.swift; sourceTree = "<group>"; };
@@ -301,6 +304,7 @@
 		5194C003A28A4B2941C7AC40 /* CloudBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudBackupService.swift; sourceTree = "<group>"; };
 		55E70A76A6F35E1A6677742F /* RestoreSeedSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestoreSeedSheet.swift; sourceTree = "<group>"; };
 		5AFFF3730F0DCCB9662892DE /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		5C279A012FEA00010074ACD2 /* SpliceRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpliceRepositoryTests.swift; sourceTree = "<group>"; };
 		5E0D4B3FBC893E4863B95AB9 /* LSPService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LSPService.swift; sourceTree = "<group>"; };
 		61BB0D1D623E0794FC1ED6ED /* NodeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeService.swift; sourceTree = "<group>"; };
 		623F41D841B312F0C9AE01E6 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
@@ -407,6 +411,8 @@
 				495CB3FD3017724E00560837 /* ProcessedTxStore.swift */,
 				495CB3FE3017724E00560837 /* ReconnectionManager.swift */,
 				495CB3F93013F14100560837 /* TransactionMatcher.swift */,
+				49E245FD3051D20C00B5C6D5 /* WebSocketBridge.swift */,
+				49E245FE3051D20C00B5C6D5 /* WebSocketEvents.swift */,
 			);
 			path = WebSocket;
 			sourceTree = "<group>";
@@ -739,8 +745,8 @@
 				490224CB302F90A500DF84AA /* PriceServiceTests.swift */,
 				495895DC3051824D002CF62A /* QRCodeExtractorTests.swift */,
 				499DBE742FD2DADF003E89F9 /* ResilientEsploraClientTests.swift */,
-				D1A60F120000000000000004 /* SPVHeaderChainServiceTests.swift */,
 				5C279A012FEA00010074ACD2 /* SpliceRepositoryTests.swift */,
+				D1A60F120000000000000004 /* SPVHeaderChainServiceTests.swift */,
 				8ABF9700FAF2E4B9C85D8CB7 /* StabilityServiceTests.swift */,
 				499DBE752FD2DADF003E89F9 /* StaggeredTaskLauncherTests.swift */,
 			);
@@ -962,6 +968,8 @@
 				495CB3FA3013F14100560837 /* TransactionMatcher.swift in Sources */,
 				B58FDE639A431D2000E0F86D /* StableChannel.swift in Sources */,
 				49D9C2E22FB6E52E00133509 /* BiometricService.swift in Sources */,
+				49E245FF3051D20C00B5C6D5 /* WebSocketEvents.swift in Sources */,
+				49E246003051D20C00B5C6D5 /* WebSocketBridge.swift in Sources */,
 				06C3B1697681F176DD44C146 /* StableChannelsApp.swift in Sources */,
 				49F0B0DE2FC0EF3A003A3B89 /* BackupSettingsView.swift in Sources */,
 				499DBE7B2FD2F06F003E89F9 /* TxidLinkStore.swift in Sources */,

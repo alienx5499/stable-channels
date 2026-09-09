@@ -91,6 +91,19 @@ class AppState {
     var confirmationUpdateEpoch: Int = 0
     let mempoolWebSocketService: MempoolWebSocketProtocol = MempoolWebSocketService()
     let lspService = LSPService()
+    @ObservationIgnored
+    private lazy var wsEventBridge: WebSocketBridge = {
+        let bridge = WebSocketBridge.placeholder()
+        bridge.bind(appState: self)
+        return bridge
+    }()
+
+    @ObservationIgnored
+    private lazy var wsEventHandler: WebSocketEvents = .init(
+        reader: wsEventBridge,
+        writer: wsEventBridge,
+        mempoolWebSocket: mempoolWebSocketService
+    )
 
     // MARK: - State
 
@@ -308,7 +321,7 @@ class AppState {
     private var spliceConfirmationTask: Task<Void, Never>?
     private var monitoredSpliceTxid: String?
     private var sweepOnchainStart: UInt64 = 0
-    private var prevOnchainSats: UInt64 = {
+    var prevOnchainSats: UInt64 = {
         let ud = UserDefaults(suiteName: Constants.appGroupIdentifier)
         return UInt64(bitPattern: Int64(ud?.integer(forKey: "cached_onchain_sats") ?? 0))
     }()
@@ -460,7 +473,7 @@ class AppState {
         }
         mempoolWebSocketService.onTransactionDetected = { [weak self] event in
             Task { @MainActor in
-                self?.handleWebSocketTransactionDetected(event: event)
+                self?.wsEventHandler.handle(event: event)
             }
         }
 
@@ -2154,7 +2167,7 @@ class AppState {
         txidResolutionService.startCloseTxidResolver(opId: opId)
     }
 
-    private func handleCloseTxidResolved(opId: String, closingTxid: String) {
+    func handleCloseTxidResolved(opId: String, closingTxid: String) {
         let op = databaseService?.pendingOpRepo.fetchPendingOperation(opId: opId)
         let balanceSats = op?.balanceSats ?? 0
         let balanceUSD = op?.balanceUsd
@@ -2784,70 +2797,6 @@ class AppState {
             ])
         }
         prevOnchainSats = currentOnchain
-    }
-
-    func handleWebSocketTransactionDetected(event: WebSocketEvent) {
-        guard let db = databaseService else { return }
-
-        switch event {
-        case .trackedOutspend(let trackedTxid, let spendingTxid):
-            guard isChannelClosing else { return }
-
-            // A tracked funding txid was outspent: this is a channel close!
-            txidResolutionService.mempoolWebSocketService?.untrackTx(trackedTxid)
-
-            // Instantly resolve the close payment row
-            if let op = db.pendingOpRepo.fetchPendingOperationByFundingTxid(trackedTxid) {
-                handleCloseTxidResolved(opId: op.opId, closingTxid: spendingTxid)
-            }
-
-        case .removed(let target, let txid):
-            guard !isChannelClosing, !isSweeping, pendingSplice == nil else { return }
-            do {
-                try db.paymentRepo.failPaymentByTxid(txid: txid)
-                let currentOnchain = onchainBalanceSats
-                if currentOnchain < prevOnchainSats {
-                    prevOnchainSats = currentOnchain
-                }
-                AuditService.log("WEBSOCKET_RBF_FAILED_PAYMENT", data: ["txid": txid, "target": target])
-            } catch {
-                AuditService.log("WEBSOCKET_RBF_FAIL_FAILED", data: ["error": "\(error)", "txid": txid])
-            }
-
-        case .receive(let target, let txid, let amountSats):
-            guard !isChannelClosing, !isSweeping, pendingSplice == nil else { return }
-
-            // 1. If amountSats > 0 and address is known, record pending payment in SQLite instantly
-            if amountSats >= 1000 {
-                let price = stableChannel.latestPrice > 0 ? stableChannel.latestPrice : btcPrice
-                let amountUSD: Double? = price > 0 ? Double(amountSats) / 100_000_000.0 * price : nil
-                let paymentId = "onchain_receive_\(txid)"
-
-                do {
-                    let recorded = try db.paymentRepo.recordPayment(
-                        paymentId: paymentId,
-                        paymentType: "onchain",
-                        direction: "received",
-                        amountMsat: UInt64(amountSats * 1000),
-                        amountUSD: amountUSD,
-                        btcPrice: price > 0 ? price : nil,
-                        counterparty: nil,
-                        status: "pending",
-                        txid: txid,
-                        address: target
-                    )
-                    if recorded {
-                        AuditService.log(
-                            "WEBSOCKET_INSTANT_PAYMENT_RECORDED",
-                            data: ["txid": txid, "sats": "\(amountSats)"]
-                        )
-                        paymentFlash.toggle()
-                    }
-                } catch {
-                    AuditService.log("WEBSOCKET_RECORD_PAYMENT_FAILED", data: ["error": "\(error)"])
-                }
-            }
-        }
     }
 
     // MARK: - Sweep to Channel
