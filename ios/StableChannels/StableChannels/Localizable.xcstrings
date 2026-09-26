@@ -1,18 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "maximum_additional_trade" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Maximum additional trade: $%.2f" } }
-      }
-    },
-    "stabilization_reserve_explanation" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Keeps a small BTC reserve in the channel." } }
-      }
-    },
     "" : {
       "localizations" : {
         "ar" : {
@@ -269,6 +257,9 @@
         }
       }
     },
+    "%@ USD" : {
+
+    },
     "%lld." : {
       "localizations" : {
         "ar" : {
@@ -343,7 +334,11 @@
         }
       }
     },
+    "%lld%%" : {
+
+    },
     "%lld%% USD  %lld%% BTC" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -412,6 +407,25 @@
           }
         }
       }
+    },
+    "≈ %@ BTC (%llu sats)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "≈ %1$@ BTC (%2$llu sats)"
+          }
+        }
+      }
+    },
+    "≈ %@ USD" : {
+
+    },
+    "$" : {
+
+    },
+    "0.00" : {
+
     },
     "A fresh BTC/USD consensus is required before trading" : {
 
@@ -979,6 +993,16 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Reset LSP"
+          }
+        }
+      }
+    },
+    "Allowed range: %llu – %llu sats" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Allowed range: %1$llu – %2$llu sats"
           }
         }
       }
@@ -2014,6 +2038,9 @@
         }
       }
     },
+    "Balance: %@" : {
+
+    },
     "Bitcoin address QR code" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2085,6 +2112,17 @@
         }
       }
     },
+    "button_add_note" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Add Note"
+          }
+        }
+      }
+    },
     "button_any_amount" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2152,6 +2190,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "任意金额"
+          }
+        }
+      }
+    },
+    "button_back" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Back"
           }
         }
       }
@@ -2611,6 +2660,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已复制"
+          }
+        }
+      }
+    },
+    "button_copy" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copy"
           }
         }
       }
@@ -3467,6 +3527,28 @@
         }
       }
     },
+    "button_max" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Max"
+          }
+        }
+      }
+    },
+    "button_next" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Next"
+          }
+        }
+      }
+    },
     "button_ok" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3605,6 +3687,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "打开设置"
+          }
+        }
+      }
+    },
+    "button_paste" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Paste"
           }
         }
       }
@@ -4483,6 +4576,17 @@
         }
       }
     },
+    "button_slide_to_send" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Slide to Send"
+          }
+        }
+      }
+    },
     "button_swap" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4830,6 +4934,9 @@
           }
         }
       }
+    },
+    "Complete Sync" : {
+
     },
     "confirm_passphrase" : {
       "extractionState" : "extracted_with_value",
@@ -8227,6 +8334,17 @@
         }
       }
     },
+    "error_trade_service_unavailable" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Trade service unavailable"
+          }
+        }
+      }
+    },
     "error_unrecognized_format" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8936,6 +9054,28 @@
         }
       }
     },
+    "header_account_asset" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Account & Asset"
+          }
+        }
+      }
+    },
+    "header_address" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Address"
+          }
+        }
+      }
+    },
     "header_amount" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9003,6 +9143,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "金额"
+          }
+        }
+      }
+    },
+    "header_comment" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Message / Comment"
           }
         }
       }
@@ -9216,6 +9367,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "将资金移动到任何比特币地址"
+          }
+        }
+      }
+    },
+    "header_payee" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Payee"
+          }
+        }
+      }
+    },
+    "header_recipient" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recipient"
+          }
+        }
+      }
+    },
+    "header_recipient_receives" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Recipient Receives"
           }
         }
       }
@@ -10719,39 +10903,6 @@
         }
       }
     },
-    "info_lightning_lsp_fee_estimate" : {
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "~%@ BTC"
-          }
-        }
-      }
-    },
-    "info_lightning_lsp_fee_estimate_with_usd" : {
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "~%1$@ (%2$@ BTC)"
-          }
-        }
-      }
-    },
-    "info_lightning_lsp_fee_none" : {
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "No fee expected"
-          }
-        }
-      }
-    },
     "info_no_channel" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {
@@ -10972,17 +11123,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Expected network fee: ~%1$@ BTC (%2$llu sat/vB)"
-          }
-        }
-      }
-    },
-    "info_onchain_fee_estimate_value" : {
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "~%1$@ BTC (%2$llu sat/vB)"
           }
         }
       }
@@ -13046,6 +13186,17 @@
         }
       }
     },
+    "label_bitcoin" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Bitcoin"
+          }
+        }
+      }
+    },
     "label_bolt11" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -15056,6 +15207,17 @@
         }
       }
     },
+    "label_lightning_ready" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Lightning Ready"
+          }
+        }
+      }
+    },
     "label_lsps2_token" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {
@@ -15859,6 +16021,17 @@
         }
       }
     },
+    "label_onchain_only" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Onchain Wallet"
+          }
+        }
+      }
+    },
     "label_outbound" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -16363,6 +16536,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "总余额"
+          }
+        }
+      }
+    },
+    "label_total_fees" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Total Fees"
+          }
+        }
+      }
+    },
+    "label_total_spent" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Total Spent"
           }
         }
       }
@@ -17987,6 +18182,9 @@
         }
       }
     },
+    "Max" : {
+
+    },
     "max_channel_limit" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -18054,6 +18252,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最大额度：$%lld"
+          }
+        }
+      }
+    },
+    "maximum_additional_trade" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maximum additional trade: $%.2f"
           }
         }
       }
@@ -20019,6 +20228,17 @@
         }
       }
     },
+    "placeholder_optional_comment" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Optional memo for recipient"
+          }
+        }
+      }
+    },
     "placeholder_pubkey" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {
@@ -20097,6 +20317,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "word1 word2 word3..."
+          }
+        }
+      }
+    },
+    "placeholder_send_destination" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Invoice, address, or name@domain.com"
           }
         }
       }
@@ -20237,6 +20468,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请在继续之前提取所有 BTC。现有的钱包数据将被完全覆盖。"
+          }
+        }
+      }
+    },
+    "preview_complete_sync" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Complete Sync"
+          }
+        }
+      }
+    },
+    "preview_replay" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Replay Flow"
+          }
+        }
+      }
+    },
+    "preview_reset_sync" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Reset Sync"
           }
         }
       }
@@ -20588,6 +20852,9 @@
           }
         }
       }
+    },
+    "Restart Flow" : {
+
     },
     "restore_action" : {
       "extractionState" : "extracted_with_value",
@@ -22875,6 +23142,17 @@
     "Share the logs" : {
 
     },
+    "stabilization_reserve_explanation" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keeps a small BTC reserve in the channel."
+          }
+        }
+      }
+    },
     "status_channel_closed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -24328,6 +24606,17 @@
         }
       }
     },
+    "status_trade_rejected" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Order Rejected"
+          }
+        }
+      }
+    },
     "status_waiting_lsp" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -25731,6 +26020,17 @@
         }
       }
     },
+    "title_amount" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Amount"
+          }
+        }
+      }
+    },
     "title_app_access" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -26381,6 +26681,17 @@
         }
       }
     },
+    "title_confirm_transaction" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Confirm transaction"
+          }
+        }
+      }
+    },
     "title_fund_wallet" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -26829,6 +27140,17 @@
         }
       }
     },
+    "title_payment_sent" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Payment Sent"
+          }
+        }
+      }
+    },
     "title_push_connectivity" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {
@@ -27180,6 +27502,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "BTC → USD"
+          }
+        }
+      }
+    },
+    "title_send" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Send"
           }
         }
       }

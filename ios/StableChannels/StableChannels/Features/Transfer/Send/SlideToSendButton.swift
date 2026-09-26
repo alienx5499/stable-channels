@@ -1,0 +1,101 @@
+import SwiftUI
+import UIKit
+
+/// Interactive swipe-to-confirm button inspired by high-security wallet patterns.
+/// Prevents accidental payment broadcasts while providing tactile feedback.
+struct SlideToSendButton: View {
+    let title: String
+    let isSending: Bool
+    let onConfirmed: () -> Void
+
+    @State private var dragOffset: CGFloat = 0
+    @State private var hasTriggered = false
+
+    private let handleSize: CGFloat = 52
+    private let trackHeight: CGFloat = 58
+    private let cornerRadius: CGFloat = 14
+
+    var body: some View {
+        GeometryReader { geometry in
+            let totalWidth = geometry.size.width
+            let maxDrag = max(0, totalWidth - handleSize - 6)
+
+            ZStack(alignment: .leading) {
+                // Background Track
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(Color(white: 0.12))
+                    .frame(height: trackHeight)
+
+                // Track Progress Fill
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(Color.blue.opacity(0.25))
+                    .frame(width: max(0, dragOffset + handleSize + 3), height: trackHeight)
+
+                // Center Label
+                HStack {
+                    Spacer()
+                    if isSending {
+                        ProgressView()
+                            .tint(.white)
+                    } else {
+                        Text(title)
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color.white.opacity(0.85))
+                            .opacity(1.0 - Double(dragOffset / max(1, maxDrag)))
+                    }
+                    Spacer()
+                }
+
+                // Draggable Handle
+                if !isSending {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.cyan)
+                            .frame(width: handleSize, height: handleSize)
+
+                        Image(systemName: "chevron.right.2")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(.black)
+                    }
+                    .padding(.leading, 3)
+                    .offset(x: dragOffset)
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                guard !hasTriggered else { return }
+                                let newOffset = min(max(0, value.translation.width), maxDrag)
+                                if abs(newOffset - dragOffset) > 12 {
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                }
+                                dragOffset = newOffset
+
+                                if dragOffset >= maxDrag * 0.88 {
+                                    hasTriggered = true
+                                    dragOffset = maxDrag
+                                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                    onConfirmed()
+                                }
+                            }
+                            .onEnded { _ in
+                                guard !hasTriggered else { return }
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                                    dragOffset = 0
+                                }
+                            }
+                    )
+                }
+            }
+            .frame(height: trackHeight)
+        }
+        .frame(height: trackHeight)
+        .disabled(isSending)
+        .onChange(of: isSending) { _, sending in
+            if !sending {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    dragOffset = 0
+                    hasTriggered = false
+                }
+            }
+        }
+    }
+}
