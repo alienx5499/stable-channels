@@ -13,8 +13,9 @@ final class SendFlowModel {
 
     var destination: SendDestination?
     var classification: PaymentDestinationClassification = .empty
-    var amountUSDStr: String = ""
-    var isSatPrimary: Bool = false
+    var amountUnit: SendAmountUnit = .usd
+    var amountInputText: String = ""
+
     var lnurlParams: LNURLPayParams?
     var lnurlComment: String = ""
     var isFetchingLNURL: Bool = false
@@ -66,6 +67,7 @@ final class SendFlowModel {
     }
 
     func proceedFromAmount(appState: AppState) {
+        normalizeAmountInput()
         errorMessage = nil
         let sats = computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
         guard sats > 0 else {
@@ -83,14 +85,74 @@ final class SendFlowModel {
         self.step = .confirm
     }
 
-    func computeEffectiveSats(btcPrice: Double) -> UInt64 {
-        if let dest = destination, case .bolt11(_, _, let msat) = dest, let msat, msat > 0 {
-            return msat / 1000
+    func normalizeAmountInput() {
+        guard !amountInputText.isEmpty else { return }
+        switch amountUnit {
+        case .usd:
+            if let val = Double(amountInputText) { amountInputText = val > 0 ? String(format: "%.2f", val) : "" }
+        case .sats:
+            if let sats = UInt64(amountInputText) { amountInputText = sats > 0 ? "\(sats)" : "" }
+        case .btc:
+            if let btc = Double(amountInputText), btc > 0 {
+                var trimmed = String(format: "%.8f", btc)
+                while trimmed.hasSuffix("0") && trimmed.contains(".") {
+                    trimmed.removeLast()
+                }
+                if trimmed.hasSuffix(".") { trimmed.removeLast() }
+                amountInputText = trimmed
+            }
         }
-        guard btcPrice > 0, let usd = Double(amountUSDStr), usd > 0 else { return 0 }
-        let sats = (usd / btcPrice) * Double(Constants.satsInBTC)
-        guard sats.isFinite, sats >= 1, sats < Double(UInt64.max) else { return 0 }
-        return UInt64(sats)
+    }
+
+    func computeEffectiveSats(btcPrice: Double) -> UInt64 {
+        if let dest = destination, case .bolt11(_, _, let msat) = dest, let msat, msat > 0 { return msat / 1000 }
+        guard let val = Double(amountInputText), val > 0 else { return 0 }
+        switch amountUnit {
+        case .sats:
+            return (val.isFinite && val >= 1 && val < Double(UInt64.max)) ? UInt64(val) : 0
+        case .usd:
+            guard btcPrice > 0 else { return 0 }
+            let sats = (val / btcPrice) * Double(Constants.satsInBTC)
+            return (sats.isFinite && sats >= 1 && sats < Double(UInt64.max)) ? UInt64(sats) : 0
+        case .btc:
+            let sats = val * Double(Constants.satsInBTC)
+            return (sats.isFinite && sats >= 1 && sats < Double(UInt64.max)) ? UInt64(sats) : 0
+        }
+    }
+
+    func switchUnit(to newUnit: SendAmountUnit, btcPrice: Double) {
+        guard newUnit != amountUnit else { return }
+        let sats = computeEffectiveSats(btcPrice: btcPrice)
+        amountUnit = newUnit
+        guard sats > 0 else {
+            amountInputText = ""
+            return
+        }
+        switch newUnit {
+        case .usd:
+            let usd = (Double(sats) / Double(Constants.satsInBTC)) * btcPrice
+            amountInputText = String(format: "%.2f", usd)
+        case .sats:
+            amountInputText = "\(sats)"
+        case .btc:
+            let btc = Double(sats) / Double(Constants.satsInBTC)
+            amountInputText = String(format: "%.8f", btc)
+        }
+    }
+
+    func applyPercentage(_ percent: Int, totalBalanceSats: UInt64, btcPrice: Double) {
+        guard totalBalanceSats > 0, btcPrice > 0 else { return }
+        let targetSats = (totalBalanceSats * UInt64(percent)) / 100
+        switch amountUnit {
+        case .usd:
+            let usd = (Double(targetSats) / Double(Constants.satsInBTC)) * btcPrice
+            amountInputText = String(format: "%.2f", usd)
+        case .sats:
+            amountInputText = "\(targetSats)"
+        case .btc:
+            let btc = Double(targetSats) / Double(Constants.satsInBTC)
+            amountInputText = String(format: "%.8f", btc)
+        }
     }
 
     func executeSend(appState: AppState) async {
