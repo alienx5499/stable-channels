@@ -12,7 +12,7 @@ struct SendRecipientStepView: View {
             if let error = model.errorMessage {
                 errorBanner(error)
             } else {
-                destinationFeedback
+                SendDestinationBadgeView(classification: model.classification)
             }
 
             availableBalanceFooter
@@ -46,62 +46,36 @@ struct SendRecipientStepView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
 
-                if !model.inputText.isEmpty {
+                if model.inputText.isEmpty {
                     Button {
+                        if let clipboard = UIPasteboard.general.string {
+                            UISelectionFeedbackGenerator().selectionChanged()
+                            model.inputText = QRCodeExtractor.sanitizePaymentInput(clipboard)
+                        }
+                    } label: {
+                        Image(systemName: "doc.on.clipboard")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 2)
+                    .accessibilityLabel(Text(String(localized: "button_paste", defaultValue: "Paste")))
+                } else {
+                    Button {
+                        UISelectionFeedbackGenerator().selectionChanged()
                         model.inputText = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill")
+                            .font(.body)
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
                     .padding(.top, 2)
                 }
             }
-
-            Divider()
-
-            Button {
-                if let clipboard = UIPasteboard.general.string {
-                    model.inputText = QRCodeExtractor.sanitizePaymentInput(clipboard)
-                }
-            } label: {
-                Label(String(localized: "button_paste", defaultValue: "Paste"), systemImage: "doc.on.clipboard")
-                    .font(.subheadline)
-            }
-            .buttonStyle(.bordered)
         }
         .padding(16)
         .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
-    }
-
-    @ViewBuilder
-    private var destinationFeedback: some View {
-        switch model.classification {
-        case .valid(let target):
-            HStack(spacing: 6) {
-                Image(systemName: destinationIcon(for: target))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Text(target.displayTitle)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-            .padding(.horizontal, 4)
-        case .invalid(let reason):
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.circle.fill")
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                Text(reason)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                Spacer()
-            }
-            .padding(.horizontal, 4)
-        case .empty:
-            EmptyView()
-        }
     }
 
     @ViewBuilder
@@ -128,16 +102,6 @@ struct SendRecipientStepView: View {
         .controlSize(.large)
         .disabled(model.destination == nil || model.isFetchingLNURL)
         .padding(.bottom, 16)
-    }
-
-    private func destinationIcon(for target: SendDestination) -> String {
-        switch target {
-        case .bolt11: return "bolt.fill"
-        case .bolt12: return "sparkles"
-        case .lightningAddress: return "at"
-        case .lnurlPay: return "link"
-        case .onchain: return "bitcoinsign"
-        }
     }
 
     private func errorBanner(_ message: String) -> some View {
