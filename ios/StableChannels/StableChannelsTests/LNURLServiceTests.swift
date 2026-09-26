@@ -83,7 +83,7 @@ final class LNURLServiceTests: XCTestCase {
         let session = URLSession(configuration: config)
         let service = LNURLService(urlSession: session)
 
-        let targetURL = try XCTUnwrap(URL(string: "https://0xprabal.com/.well-known/lnurlp/pprabal"))
+        let targetURL = try XCTUnwrap(URL(string: "https://0xprabal.com/.well-known/lnurlp/invalid"))
         MockURLProtocol.requestHandler = { _ in
             let response = HTTPURLResponse(url: targetURL, statusCode: 404, httpVersion: nil, headerFields: nil)!
             let data = Data("{\"status\":\"ERROR\",\"reason\":\"User not found\"}".utf8)
@@ -100,7 +100,7 @@ final class LNURLServiceTests: XCTestCase {
         }
     }
 
-    func testLiveLNURLPayResolutionWithPrabal() async throws {
+    func testLiveLNURLPayResolution() async throws {
         let service = LNURLService()
         let realURL = try XCTUnwrap(URL(string: "https://0xprabal.com/.well-known/lnurlp/prabal"))
         let params = try await service.fetchPayParams(from: realURL)
@@ -109,9 +109,9 @@ final class LNURLServiceTests: XCTestCase {
         XCTAssertTrue(params.callback.starts(with: "https://"))
     }
 
-    func testLiveInvalidLNURLPayResolutionWithPprabal() async throws {
+    func testLiveInvalidRecipientResolution() async throws {
         let service = LNURLService()
-        let invalidURL = try XCTUnwrap(URL(string: "https://0xprabal.com/.well-known/lnurlp/pprabal"))
+        let invalidURL = try XCTUnwrap(URL(string: "https://0xprabal.com/.well-known/lnurlp/invalid"))
         do {
             _ = try await service.fetchPayParams(from: invalidURL)
             XCTFail("Expected LNURLError.errorResponse")
