@@ -38,56 +38,50 @@ struct SlideToSendButton: View {
                 // Center Label
                 HStack {
                     Spacer()
-                    if isSending {
-                        ProgressView()
-                    } else {
-                        Text(title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .opacity(1.0 - Double(dragOffset / max(1, maxDrag)))
-                    }
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .opacity(1.0 - Double(dragOffset / max(1, maxDrag)))
                     Spacer()
                 }
 
                 // Draggable Handle
-                if !isSending {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                            .shadow(color: Color.black.opacity(0.12), radius: 4, x: 0, y: 2)
-                            .frame(width: handleSize, height: handleSize)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                        .shadow(color: Color.black.opacity(0.12), radius: 4, x: 0, y: 2)
+                        .frame(width: handleSize, height: handleSize)
 
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.primary)
-                    }
-                    .padding(.leading, 3)
-                    .offset(x: dragOffset)
-                    .gesture(
-                        DragGesture()
-                            .onChanged { value in
-                                guard !hasTriggered else { return }
-                                let newOffset = min(max(0, value.translation.width), maxDrag)
-                                if abs(newOffset - dragOffset) > 12 {
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                }
-                                dragOffset = newOffset
-
-                                if dragOffset >= maxDrag * 0.88 {
-                                    hasTriggered = true
-                                    dragOffset = maxDrag
-                                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                                    onConfirmed()
-                                }
-                            }
-                            .onEnded { _ in
-                                guard !hasTriggered else { return }
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                                    dragOffset = 0
-                                }
-                            }
-                    )
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.primary)
                 }
+                .padding(.leading, 3)
+                .offset(x: dragOffset)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            guard !hasTriggered else { return }
+                            let newOffset = min(max(0, value.translation.width), maxDrag)
+                            if abs(newOffset - dragOffset) > 12 {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            }
+                            dragOffset = newOffset
+
+                            if dragOffset >= maxDrag * 0.88 {
+                                hasTriggered = true
+                                dragOffset = maxDrag
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                onConfirmed()
+                            }
+                        }
+                        .onEnded { _ in
+                            guard !hasTriggered else { return }
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                                dragOffset = 0
+                            }
+                        }
+                )
             }
             .frame(height: trackHeight)
         }

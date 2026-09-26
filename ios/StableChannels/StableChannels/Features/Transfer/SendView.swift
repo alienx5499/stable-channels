@@ -11,25 +11,51 @@ struct SendView: View {
             ZStack {
                 Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
 
-                Group {
-                    switch model.step {
-                    case .recipient:
-                        SendRecipientStepView(model: model)
-                    case .amount:
-                        SendAmountStepView(model: model)
-                    case .confirm:
-                        SendConfirmStepView(model: model)
-                    case .success:
-                        SendSuccessStepView(model: model) {
-                            dismiss()
+                if model.isFetchingLNURL {
+                    SendLoadingView(
+                        title: String(localized: "title_verifying_payment", defaultValue: "Verifying Destination"),
+                        subtitle: String(
+                            localized: "subtitle_resolving_lnurl",
+                            defaultValue: "Connecting to Lightning service..."
+                        ),
+                        curve: .spiralSearch,
+                        tint: .orange
+                    )
+                    .transition(.opacity)
+                } else if model.isSending {
+                    SendLoadingView(
+                        title: String(localized: "title_sending_payment", defaultValue: "Sending Payment"),
+                        subtitle: String(
+                            localized: "subtitle_broadcasting_tx",
+                            defaultValue: "Validating invoice and broadcasting..."
+                        ),
+                        curve: .sixPetalSpiral,
+                        tint: .orange
+                    )
+                    .transition(.opacity)
+                } else {
+                    Group {
+                        switch model.step {
+                        case .recipient:
+                            SendRecipientStepView(model: model)
+                        case .amount:
+                            SendAmountStepView(model: model)
+                        case .confirm:
+                            SendConfirmStepView(model: model)
+                        case .success:
+                            SendSuccessStepView(model: model) {
+                                dismiss()
+                            }
                         }
                     }
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .trailing)),
+                        removal: .opacity.combined(with: .move(edge: .leading))
+                    ))
                 }
-                .transition(.asymmetric(
-                    insertion: .opacity.combined(with: .move(edge: .trailing)),
-                    removal: .opacity.combined(with: .move(edge: .leading))
-                ))
             }
+            .animation(.easeInOut(duration: 0.25), value: model.isFetchingLNURL)
+            .animation(.easeInOut(duration: 0.25), value: model.isSending)
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -44,6 +70,9 @@ struct SendView: View {
     }
 
     private var navigationTitle: String {
+        if model.isFetchingLNURL || model.isSending {
+            return ""
+        }
         switch model.step {
         case .recipient:
             return String(localized: "title_send", defaultValue: "Send")
@@ -58,33 +87,37 @@ struct SendView: View {
 
     @ViewBuilder
     private var navLeadingButton: some View {
-        switch model.step {
-        case .recipient:
-            Button(String(localized: "button_cancel", defaultValue: "Cancel")) {
-                dismiss()
-            }
-        case .amount:
-            Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    model.step = .recipient
+        if model.isFetchingLNURL || model.isSending {
+            EmptyView()
+        } else {
+            switch model.step {
+            case .recipient:
+                Button(String(localized: "button_cancel", defaultValue: "Cancel")) {
+                    dismiss()
                 }
-            } label: {
-                Label(String(localized: "button_back", defaultValue: "Back"), systemImage: "chevron.left")
-            }
-        case .confirm:
-            Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    if let dest = model.destination, dest.requiresManualAmount {
-                        model.step = .amount
-                    } else {
+            case .amount:
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         model.step = .recipient
                     }
+                } label: {
+                    Label(String(localized: "button_back", defaultValue: "Back"), systemImage: "chevron.left")
                 }
-            } label: {
-                Label(String(localized: "button_back", defaultValue: "Back"), systemImage: "chevron.left")
+            case .confirm:
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        if let dest = model.destination, dest.requiresManualAmount {
+                            model.step = .amount
+                        } else {
+                            model.step = .recipient
+                        }
+                    }
+                } label: {
+                    Label(String(localized: "button_back", defaultValue: "Back"), systemImage: "chevron.left")
+                }
+            case .success:
+                EmptyView()
             }
-        case .success:
-            EmptyView()
         }
     }
 }

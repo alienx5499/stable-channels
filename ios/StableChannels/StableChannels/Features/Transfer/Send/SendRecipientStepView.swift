@@ -116,14 +116,9 @@ struct SendRecipientStepView: View {
         Button {
             Task { await model.proceedFromRecipient(appState: appState) }
         } label: {
-            if model.isFetchingLNURL {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-            } else {
-                Text(String(localized: "button_continue", defaultValue: "Continue"))
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-            }
+            Text(String(localized: "button_continue", defaultValue: "Continue"))
+                .font(.headline)
+                .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
