@@ -76,4 +76,49 @@ final class LNURLServiceTests: XCTestCase {
         let params = try await mock.fetchPayParams(from: url)
         XCTAssertEqual(params.callback, "https://test.com/cb")
     }
+
+    func testErrorResponseParsing() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let session = URLSession(configuration: config)
+        let service = LNURLService(urlSession: session)
+
+        let targetURL = try XCTUnwrap(URL(string: "https://0xprabal.com/.well-known/lnurlp/pprabal"))
+        MockURLProtocol.requestHandler = { _ in
+            let response = HTTPURLResponse(url: targetURL, statusCode: 404, httpVersion: nil, headerFields: nil)!
+            let data = Data("{\"status\":\"ERROR\",\"reason\":\"User not found\"}".utf8)
+            return (response, data)
+        }
+
+        do {
+            _ = try await service.fetchPayParams(from: targetURL)
+            XCTFail("Expected LNURLError.errorResponse")
+        } catch let LNURLError.errorResponse(reason) {
+            XCTAssertEqual(reason, "User not found")
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    func testLiveLNURLPayResolutionWithPrabal() async throws {
+        let service = LNURLService()
+        let realURL = try XCTUnwrap(URL(string: "https://0xprabal.com/.well-known/lnurlp/prabal"))
+        let params = try await service.fetchPayParams(from: realURL)
+        XCTAssertEqual(params.tag.lowercased(), "payrequest")
+        XCTAssertTrue(params.maxSendable >= params.minSendable)
+        XCTAssertTrue(params.callback.starts(with: "https://"))
+    }
+
+    func testLiveInvalidLNURLPayResolutionWithPprabal() async throws {
+        let service = LNURLService()
+        let invalidURL = try XCTUnwrap(URL(string: "https://0xprabal.com/.well-known/lnurlp/pprabal"))
+        do {
+            _ = try await service.fetchPayParams(from: invalidURL)
+            XCTFail("Expected LNURLError.errorResponse")
+        } catch let LNURLError.errorResponse(reason) {
+            XCTAssertEqual(reason, "User not found")
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
 }

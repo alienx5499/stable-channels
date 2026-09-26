@@ -18,7 +18,7 @@ struct SendView: View {
                             localized: "subtitle_resolving_lnurl",
                             defaultValue: "Connecting to Lightning service..."
                         ),
-                        curve: .spiralSearch,
+                        curve: .roseCurve,
                         tint: .orange
                     )
                     .transition(.opacity)
@@ -29,7 +29,7 @@ struct SendView: View {
                             localized: "subtitle_broadcasting_tx",
                             defaultValue: "Validating invoice and broadcasting..."
                         ),
-                        curve: .sixPetalSpiral,
+                        curve: .roseCurve,
                         tint: .orange
                     )
                     .transition(.opacity)

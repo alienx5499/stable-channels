@@ -4,7 +4,7 @@ import SwiftUI
 struct SendLoadingView: View {
     let title: String
     let subtitle: String
-    var curve: CurveProgressIndicator.CurveType = .sixPetalSpiral
+    var curve: CurveProgressIndicator.CurveType = .roseCurve
     var tint: Color = .orange
 
     var body: some View {

@@ -9,7 +9,11 @@ struct SendRecipientStepView: View {
         VStack(spacing: 16) {
             recipientCard
 
-            destinationFeedback
+            if let error = model.errorMessage {
+                errorBanner(error)
+            } else {
+                destinationFeedback
+            }
 
             availableBalanceFooter
 
@@ -134,5 +138,18 @@ struct SendRecipientStepView: View {
         case .lnurlPay: return "link"
         case .onchain: return "bitcoinsign"
         }
+    }
+
+    private func errorBanner(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(.red)
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(.red)
+            Spacer()
+        }
+        .padding(12)
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
     }
 }

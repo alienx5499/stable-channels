@@ -114,14 +114,21 @@ final class LNURLService: LNURLServiceProtocol {
             throw LNURLError.networkError(error.localizedDescription)
         }
 
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            throw LNURLError.invalidResponse
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            if let reason = json["reason"] as? String, !reason.isEmpty {
+                throw LNURLError.errorResponse(reason: reason)
+            }
+            if let status = json["status"] as? String, status.uppercased() == "ERROR" {
+                let reason = (json["reason"] as? String) ?? "The recipient service reported an error."
+                throw LNURLError.errorResponse(reason: reason)
+            }
         }
 
-        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let status = json["status"] as? String, status.uppercased() == "ERROR",
-           let reason = json["reason"] as? String {
-            throw LNURLError.errorResponse(reason: reason)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            if let http = response as? HTTPURLResponse, http.statusCode == 404 {
+                throw LNURLError.errorResponse(reason: "Recipient address not found.")
+            }
+            throw LNURLError.invalidResponse
         }
 
         let decoder = JSONDecoder()
@@ -163,14 +170,18 @@ final class LNURLService: LNURLServiceProtocol {
             throw LNURLError.networkError(error.localizedDescription)
         }
 
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            throw LNURLError.invalidResponse
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            if let reason = json["reason"] as? String, !reason.isEmpty {
+                throw LNURLError.errorResponse(reason: reason)
+            }
+            if let status = json["status"] as? String, status.uppercased() == "ERROR" {
+                let reason = (json["reason"] as? String) ?? "The recipient service reported an error."
+                throw LNURLError.errorResponse(reason: reason)
+            }
         }
 
-        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let status = json["status"] as? String, status.uppercased() == "ERROR",
-           let reason = json["reason"] as? String {
-            throw LNURLError.errorResponse(reason: reason)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw LNURLError.invalidResponse
         }
 
         let decoder = JSONDecoder()
