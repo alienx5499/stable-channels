@@ -130,6 +130,7 @@
       }
     },
     "%@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1717,6 +1718,9 @@
         }
       }
     },
+    "Available balance: %@" : {
+
+    },
     "available_balance" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2038,9 +2042,6 @@
         }
       }
     },
-    "Balance: %@" : {
-
-    },
     "Bitcoin address QR code" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2108,17 +2109,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "比特币地址二维码"
-          }
-        }
-      }
-    },
-    "button_add_note" : {
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Add Note"
           }
         }
       }
@@ -3534,17 +3524,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Max"
-          }
-        }
-      }
-    },
-    "button_next" : {
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Next"
           }
         }
       }
@@ -9060,7 +9039,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Account & Asset"
+            "value" : "Asset & Network"
           }
         }
       }
@@ -9071,7 +9050,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Address"
+            "value" : "Recipient Address"
           }
         }
       }
@@ -9153,7 +9132,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Message / Comment"
+            "value" : "Note"
           }
         }
       }
@@ -9388,7 +9367,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Recipient"
+            "value" : "To"
           }
         }
       }
@@ -15207,17 +15186,6 @@
         }
       }
     },
-    "label_lightning_ready" : {
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Lightning Ready"
-          }
-        }
-      }
-    },
     "label_lsps2_token" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {
@@ -16021,17 +15989,6 @@
         }
       }
     },
-    "label_onchain_only" : {
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Onchain Wallet"
-          }
-        }
-      }
-    },
     "label_outbound" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -16546,7 +16503,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Total Fees"
+            "value" : "Network Fee"
           }
         }
       }
@@ -16557,7 +16514,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Total Spent"
+            "value" : "Total Debit"
           }
         }
       }
@@ -20234,7 +20191,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Optional memo for recipient"
+            "value" : "Optional note for payee"
           }
         }
       }
@@ -20327,7 +20284,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Invoice, address, or name@domain.com"
+            "value" : "Address, invoice, or name@domain.com"
           }
         }
       }
@@ -23433,6 +23390,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "通道就绪"
+          }
+        }
+      }
+    },
+    "status_closing_channel" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Closing channel..."
           }
         }
       }

@@ -23,12 +23,16 @@ struct SlideToSendButton: View {
             ZStack(alignment: .leading) {
                 // Background Track
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(Color(white: 0.12))
+                    .fill(Color(uiColor: .tertiarySystemFill))
                     .frame(height: trackHeight)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .stroke(Color(uiColor: .separator).opacity(0.4), lineWidth: 0.5)
+                    )
 
                 // Track Progress Fill
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(Color.blue.opacity(0.25))
+                    .fill(Color.accentColor.opacity(0.18))
                     .frame(width: max(0, dragOffset + handleSize + 3), height: trackHeight)
 
                 // Center Label
@@ -36,11 +40,10 @@ struct SlideToSendButton: View {
                     Spacer()
                     if isSending {
                         ProgressView()
-                            .tint(.white)
                     } else {
                         Text(title)
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .foregroundStyle(Color.white.opacity(0.85))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
                             .opacity(1.0 - Double(dragOffset / max(1, maxDrag)))
                     }
                     Spacer()
@@ -49,13 +52,14 @@ struct SlideToSendButton: View {
                 // Draggable Handle
                 if !isSending {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.cyan)
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                            .shadow(color: Color.black.opacity(0.12), radius: 4, x: 0, y: 2)
                             .frame(width: handleSize, height: handleSize)
 
-                        Image(systemName: "chevron.right.2")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(.black)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.primary)
                     }
                     .padding(.leading, 3)
                     .offset(x: dragOffset)

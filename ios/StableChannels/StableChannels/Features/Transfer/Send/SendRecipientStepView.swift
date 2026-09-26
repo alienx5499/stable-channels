@@ -1,95 +1,38 @@
 import SwiftUI
-import PhotosUI
 
-/// Step 1: Destination input, QR scanning, and real-time protocol recognition.
+/// Step 1: Destination input, native toolbar QR/Photo scanning, and subtle protocol recognition.
 struct SendRecipientStepView: View {
     @Bindable var model: SendFlowModel
     @Environment(AppState.self) private var appState
 
-    @State private var showScanner = false
-    @State private var showPhotoPicker = false
-    @State private var selectedPhotoItem: PhotosPickerItem?
-
     var body: some View {
-        VStack(spacing: 20) {
-            sourceBalancePill
+        VStack(spacing: 16) {
+            recipientCard
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text(String(localized: "header_recipient", defaultValue: "Recipient"))
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
+            destinationFeedback
 
-                recipientCard
-            }
-
-            SendDestinationBadgeView(classification: model.classification)
+            availableBalanceFooter
 
             Spacer(minLength: 20)
 
-            actionButtons
+            continueButton
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
         .padding(.top, 16)
-        .sheet(isPresented: $showScanner) {
-            InvoiceScanView(
-                onScan: { scanned in
-                    model.inputText = QRCodeExtractor.sanitizePaymentInput(scanned)
-                    showScanner = false
-                },
-                onCancel: { showScanner = false }
-            )
-        }
-        .photosPicker(isPresented: $showPhotoPicker, selection: $selectedPhotoItem, matching: .images)
-        .onChange(of: selectedPhotoItem) { _, newItem in
-            guard let item = newItem else { return }
-            Task {
-                if let data = try? await item.loadTransferable(type: Data.self),
-                   let image = UIImage(data: data),
-                   let code = QRCodeExtractor.extract(from: image) {
-                    await MainActor.run {
-                        model.inputText = QRCodeExtractor.sanitizePaymentInput(code)
-                    }
-                }
-                await MainActor.run { selectedPhotoItem = nil }
-            }
-        }
-    }
-
-    private var sourceBalancePill: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(Color.green)
-                .frame(width: 8, height: 8)
-            let readyChannel = appState.nodeService.channels.first(where: \.isChannelReady)
-            if readyChannel != nil {
-                Text(String(localized: "label_lightning_ready", defaultValue: "Lightning Ready"))
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-            } else {
-                Text(String(localized: "label_onchain_only", defaultValue: "Onchain Wallet"))
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            if appState.btcPrice > 0 {
-                let usd = Double(appState.totalBalanceSats) / Double(Constants.satsInBTC) * appState.btcPrice
-                Text("Balance: \(usd.usdFormatted)")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(Color(white: 0.12), in: Capsule())
+        .qrInputToolbar(text: $model.inputText, sanitize: QRCodeExtractor.sanitizePaymentInput)
     }
 
     private var recipientCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ZStack(alignment: .topTrailing) {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(String(localized: "header_recipient", defaultValue: "To"))
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+
+            HStack(alignment: .top, spacing: 8) {
                 TextField(
                     String(
                         localized: "placeholder_send_destination",
-                        defaultValue: "Invoice, address, or name@domain.com"
+                        defaultValue: "Address, invoice, or name@domain.com"
                     ),
                     text: $model.inputText,
                     axis: .vertical
@@ -98,7 +41,6 @@ struct SendRecipientStepView: View {
                 .lineLimit(3...5)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-                .padding(.trailing, 28)
 
                 if !model.inputText.isEmpty {
                     Button {
@@ -107,72 +49,95 @@ struct SendRecipientStepView: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.secondary)
                     }
+                    .buttonStyle(.plain)
+                    .padding(.top, 2)
                 }
             }
 
-            Divider().overlay(Color.white.opacity(0.1))
+            Divider()
 
-            HStack {
-                Button {
-                    if let clipboard = UIPasteboard.general.string {
-                        model.inputText = QRCodeExtractor.sanitizePaymentInput(clipboard)
-                    }
-                } label: {
-                    Label(String(localized: "button_paste", defaultValue: "Paste"), systemImage: "doc.on.clipboard")
-                        .font(.caption.weight(.medium))
+            Button {
+                if let clipboard = UIPasteboard.general.string {
+                    model.inputText = QRCodeExtractor.sanitizePaymentInput(clipboard)
                 }
-                .buttonStyle(.bordered)
-                .tint(.secondary)
-
-                Spacer()
-
-                Button {
-                    showScanner = true
-                } label: {
-                    Label(
-                        String(localized: "button_scan_qr", defaultValue: "Scan QR"),
-                        systemImage: "qrcode.viewfinder"
-                    )
-                    .font(.caption.weight(.medium))
-                }
-                .buttonStyle(.bordered)
-                .tint(.cyan)
-
-                Button {
-                    showPhotoPicker = true
-                } label: {
-                    Image(systemName: "photo")
-                        .font(.caption.weight(.medium))
-                }
-                .buttonStyle(.bordered)
-                .tint(.secondary)
+            } label: {
+                Label(String(localized: "button_paste", defaultValue: "Paste"), systemImage: "doc.on.clipboard")
+                    .font(.subheadline)
             }
+            .buttonStyle(.bordered)
         }
         .padding(16)
-        .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 16))
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
     }
 
-    private var actionButtons: some View {
+    @ViewBuilder
+    private var destinationFeedback: some View {
+        switch model.classification {
+        case .valid(let target):
+            HStack(spacing: 6) {
+                Image(systemName: destinationIcon(for: target))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Text(target.displayTitle)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 4)
+        case .invalid(let reason):
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                Text(reason)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                Spacer()
+            }
+            .padding(.horizontal, 4)
+        case .empty:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var availableBalanceFooter: some View {
+        if appState.btcPrice > 0 {
+            let usd = Double(appState.totalBalanceSats) / Double(Constants.satsInBTC) * appState.btcPrice
+            Text("Available balance: \(usd.usdFormatted)")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
+        }
+    }
+
+    private var continueButton: some View {
         Button {
             Task { await model.proceedFromRecipient(appState: appState) }
         } label: {
             if model.isFetchingLNURL {
-                ProgressView().tint(.black)
+                ProgressView()
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
             } else {
-                Text(String(localized: "button_next", defaultValue: "Next"))
+                Text(String(localized: "button_continue", defaultValue: "Continue"))
                     .font(.headline)
-                    .foregroundStyle(.black)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
             }
         }
-        .background(
-            model.destination != nil ? Color.cyan : Color.gray.opacity(0.3),
-            in: RoundedRectangle(cornerRadius: 14)
-        )
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
         .disabled(model.destination == nil || model.isFetchingLNURL)
         .padding(.bottom, 16)
+    }
+
+    private func destinationIcon(for target: SendDestination) -> String {
+        switch target {
+        case .bolt11: return "bolt.fill"
+        case .bolt12: return "sparkles"
+        case .lightningAddress: return "at"
+        case .lnurlPay: return "link"
+        case .onchain: return "bitcoinsign"
+        }
     }
 }

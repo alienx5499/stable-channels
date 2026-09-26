@@ -31,24 +31,24 @@ struct SendConfirmStepView: View {
                 )
                 .padding(.bottom, 16)
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 16)
             .padding(.top, 12)
         }
     }
 
     private var accountAssetCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(String(localized: "header_account_asset", defaultValue: "Account & Asset"))
-                .font(.caption.weight(.medium))
+            Text(String(localized: "header_account_asset", defaultValue: "Asset & Network"))
+                .font(.footnote.weight(.medium))
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
                         .fill(Color.orange)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 36, height: 36)
                     Image(systemName: "bitcoinsign")
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(.white)
                 }
 
@@ -62,26 +62,26 @@ struct SendConfirmStepView: View {
                 Spacer()
             }
             .padding(14)
-            .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 14))
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
         }
     }
 
     private var sourceRouteDescription: String {
         switch model.destination {
         case .bolt11, .bolt12, .lightningAddress, .lnurlPay:
-            return "LIGHTNING • INSTANT"
+            return "Lightning • Instant"
         case .onchain:
             let isReady = appState.nodeService.channels.contains(where: \.isChannelReady)
-            return isReady ? "ONCHAIN • SPLICE-OUT" : "ONCHAIN • STANDARD"
+            return isReady ? "Onchain • Splice-Out" : "Onchain • Standard"
         case .none:
-            return "STANDARD"
+            return "Standard"
         }
     }
 
     private var addressCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(String(localized: "header_address", defaultValue: "Address"))
-                .font(.caption.weight(.medium))
+            Text(String(localized: "header_address", defaultValue: "Recipient Address"))
+                .font(.footnote.weight(.medium))
                 .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 10) {
@@ -99,74 +99,65 @@ struct SendConfirmStepView: View {
                         }
                     } label: {
                         Label(String(localized: "button_copy", defaultValue: "Copy"), systemImage: "doc.on.doc")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.cyan)
+                            .font(.subheadline)
                     }
+                    .buttonStyle(.bordered)
                 }
             }
             .padding(14)
-            .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 14))
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
         }
     }
 
     private var recipientReceivesCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(String(localized: "header_recipient_receives", defaultValue: "Recipient Receives"))
-                .font(.caption.weight(.medium))
+                .font(.footnote.weight(.medium))
                 .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 4) {
                 let sats = model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
                 let usd = (Double(sats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
                 Text("\(usd.usdFormatted) USD")
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
                 Text("\(sats.btcSpacedFormatted) BTC")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
-            .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 14))
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
         }
     }
 
     private var feeAndTotalCard: some View {
-        VStack(spacing: 10) {
+        let feeSats = estimatedFeeSats
+        let totalSats = model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice) + feeSats
+        let feeUSD = (Double(feeSats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
+        let totalUSD = (Double(totalSats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
+
+        return VStack(spacing: 10) {
             HStack {
-                Text(String(localized: "label_total_fees", defaultValue: "Total Fees"))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Text(String(localized: "label_total_fees", defaultValue: "Network Fee"))
+                    .font(.subheadline).foregroundStyle(.secondary)
                 Spacer()
-                let feeSats = estimatedFeeSats
-                let feeUSD = (Double(feeSats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("≈ \(feeUSD.usdFormatted) USD")
-                        .font(.subheadline.weight(.medium))
-                    Text("\(feeSats.btcSpacedFormatted) BTC")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    Text("≈ \(feeUSD.usdFormatted) USD").font(.subheadline.weight(.medium))
+                    Text("\(feeSats.btcSpacedFormatted) BTC").font(.caption2).foregroundStyle(.secondary)
                 }
             }
-
-            Divider().overlay(Color.white.opacity(0.1))
-
+            Divider()
             HStack {
-                Text(String(localized: "label_total_spent", defaultValue: "Total Spent"))
-                    .font(.headline)
+                Text(String(localized: "label_total_spent", defaultValue: "Total Debit")).font(.headline)
                 Spacer()
-                let totalSats = model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice) + estimatedFeeSats
-                let totalUSD = (Double(totalSats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("≈ \(totalUSD.usdFormatted) USD")
-                        .font(.headline)
-                    Text("\(totalSats.btcSpacedFormatted) BTC")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text("≈ \(totalUSD.usdFormatted) USD").font(.headline)
+                    Text("\(totalSats.btcSpacedFormatted) BTC").font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
         .padding(14)
-        .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
     }
 
     private var estimatedFeeSats: UInt64 {
@@ -177,8 +168,7 @@ struct SendConfirmStepView: View {
             let prop = UInt64(Constants.lightningDefaultForwardingFeeProportionalMillionths)
             return PaymentFeeEstimator.estimateLightningFee(sats: sats, baseMsat: base, proportionalMillionths: prop)
         case .onchain:
-            let rate = model.feeRateSatVb ?? 10
-            return PaymentFeeEstimator.estimateOnchainFee(feeRateSatVb: rate, isSendAll: false)
+            return PaymentFeeEstimator.estimateOnchainFee(feeRateSatVb: model.feeRateSatVb ?? 10, isSendAll: false)
         case .none:
             return 0
         }
@@ -186,14 +176,11 @@ struct SendConfirmStepView: View {
 
     private func errorBanner(_ message: String) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
-            Text(message)
-                .font(.caption)
-                .foregroundStyle(.red)
+            Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.red)
+            Text(message).font(.footnote).foregroundStyle(.red)
             Spacer()
         }
         .padding(12)
-        .background(Color.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
     }
 }

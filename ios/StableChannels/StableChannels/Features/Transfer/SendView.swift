@@ -9,7 +9,7 @@ struct SendView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
 
                 Group {
                     switch model.step {
@@ -35,14 +35,6 @@ struct SendView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     navLeadingButton
-                }
-                if model.step == .confirm {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button(String(localized: "button_add_note", defaultValue: "Add Note")) {
-                            // Note placeholder for memo metadata
-                        }
-                        .foregroundStyle(.cyan)
-                    }
                 }
             }
             .task {

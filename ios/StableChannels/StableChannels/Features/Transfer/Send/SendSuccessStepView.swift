@@ -46,12 +46,10 @@ struct SendSuccessStepView: View {
                 onDismiss()
             } label: {
                 Text(String(localized: "button_done", defaultValue: "Done"))
-                    .font(.headline)
-                    .foregroundStyle(.black)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
             }
-            .background(Color.cyan, in: RoundedRectangle(cornerRadius: 14))
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
             .padding(.bottom, 16)
         }
         .padding(.horizontal, 20)
@@ -74,12 +72,13 @@ struct SendSuccessStepView: View {
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                 } label: {
                     Image(systemName: "doc.on.doc")
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(.secondary)
                 }
+                .buttonStyle(.plain)
             }
         }
         .padding(14)
-        .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func paymentIdCard(paymentId: String) -> some View {
@@ -98,11 +97,12 @@ struct SendSuccessStepView: View {
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                 } label: {
                     Image(systemName: "doc.on.doc")
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(.secondary)
                 }
+                .buttonStyle(.plain)
             }
         }
         .padding(14)
-        .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
     }
 }

@@ -7,7 +7,7 @@ struct SendAmountStepView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 16) {
                 if let payeeInfo = model.lnurlParams?.plainTextDescription {
                     payeeMetadataCard(description: payeeInfo)
                 }
@@ -28,7 +28,7 @@ struct SendAmountStepView: View {
 
                 continueButton
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 16)
             .padding(.top, 16)
         }
         .scrollDismissesKeyboard(.interactively)
@@ -38,7 +38,7 @@ struct SendAmountStepView: View {
         HStack(spacing: 12) {
             Image(systemName: "person.crop.circle.fill")
                 .font(.title2)
-                .foregroundStyle(.cyan)
+                .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(String(localized: "header_payee", defaultValue: "Payee"))
                     .font(.caption)
@@ -50,7 +50,7 @@ struct SendAmountStepView: View {
             Spacer()
         }
         .padding(14)
-        .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
     }
 
     private var heroAmountCard: some View {
@@ -82,7 +82,7 @@ struct SendAmountStepView: View {
             }
         }
         .padding(20)
-        .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 16))
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
     }
 
     private var presetPercentages: some View {
@@ -92,12 +92,10 @@ struct SendAmountStepView: View {
                     applyPercentage(pct)
                 } label: {
                     Text(pct == 100 ? "Max" : "\(pct)%")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.subheadline.weight(.medium))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
                 }
                 .buttonStyle(.bordered)
-                .tint(.secondary)
             }
         }
     }
@@ -105,7 +103,7 @@ struct SendAmountStepView: View {
     private func commentCard(maxCharacters: Int) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(String(localized: "header_comment", defaultValue: "Message / Comment"))
+                Text(String(localized: "header_comment", defaultValue: "Note"))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -114,7 +112,7 @@ struct SendAmountStepView: View {
                     .foregroundStyle(.secondary)
             }
             TextField(
-                String(localized: "placeholder_optional_comment", defaultValue: "Optional memo for recipient"),
+                String(localized: "placeholder_optional_comment", defaultValue: "Optional note for payee"),
                 text: $model.lnurlComment
             )
             .font(.subheadline)
@@ -125,20 +123,20 @@ struct SendAmountStepView: View {
             }
         }
         .padding(14)
-        .background(Color(white: 0.12), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
     }
 
     private func errorCard(_ message: String) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
+            Image(systemName: "exclamationmark.circle.fill")
                 .foregroundStyle(.red)
             Text(message)
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(.red)
             Spacer()
         }
         .padding(12)
-        .background(Color.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var continueButton: some View {
@@ -147,11 +145,10 @@ struct SendAmountStepView: View {
         } label: {
             Text(String(localized: "button_continue", defaultValue: "Continue"))
                 .font(.headline)
-                .foregroundStyle(.black)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
         }
-        .background(canProceed ? Color.cyan : Color.gray.opacity(0.3), in: RoundedRectangle(cornerRadius: 14))
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
         .disabled(!canProceed)
         .padding(.bottom, 16)
     }

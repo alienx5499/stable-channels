@@ -15,9 +15,11 @@ struct AddressVisualChunkView: View {
         for (i, chunk) in chunked.chunks.enumerated() {
             var chunkAttr = AttributedString(chunk.text)
             if chunk.isHighlighted {
-                chunkAttr.foregroundColor = .cyan
+                chunkAttr.foregroundColor = Color(uiColor: .label)
+                chunkAttr.font = .system(.subheadline, design: .monospaced).weight(.semibold)
             } else {
-                chunkAttr.foregroundColor = Color(white: 0.8)
+                chunkAttr.foregroundColor = Color(uiColor: .secondaryLabel)
+                chunkAttr.font = .system(.subheadline, design: .monospaced)
             }
             str.append(chunkAttr)
             if i < chunked.chunks.count - 1 {
