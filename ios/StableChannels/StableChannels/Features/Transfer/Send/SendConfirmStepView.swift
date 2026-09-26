@@ -4,16 +4,14 @@ import SwiftUI
 struct SendConfirmStepView: View {
     @Bindable var model: SendFlowModel
     @Environment(AppState.self) private var appState
+    @State private var hasCopiedAddress = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 accountAssetCard
-
                 addressCard
-
                 recipientReceivesCard
-
                 feeAndTotalCard
 
                 if let error = model.errorMessage {
@@ -24,11 +22,10 @@ struct SendConfirmStepView: View {
 
                 SlideToSendButton(
                     title: String(localized: "button_slide_to_send", defaultValue: "Slide to Send"),
-                    isSending: model.isSending,
-                    onConfirmed: {
-                        Task { await model.executeSend(appState: appState) }
-                    }
-                )
+                    isSending: model.isSending
+                ) {
+                    Task { await model.executeSend(appState: appState) }
+                }
                 .padding(.bottom, 16)
             }
             .padding(.horizontal, 16)
@@ -44,12 +41,8 @@ struct SendConfirmStepView: View {
 
             HStack(spacing: 12) {
                 ZStack {
-                    Circle()
-                        .fill(Color.orange)
-                        .frame(width: 36, height: 36)
-                    Image(systemName: "bitcoinsign")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
+                    Circle().fill(Color.orange).frame(width: 36, height: 36)
+                    Image(systemName: "bitcoinsign").font(.system(size: 18, weight: .bold)).foregroundStyle(.white)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -78,34 +71,50 @@ struct SendConfirmStepView: View {
         }
     }
 
+    private var addressHeaderTitle: String {
+        switch model.destination {
+        case .bolt11, .bolt12: return String(localized: "header_invoice", defaultValue: "Lightning Invoice")
+        case .lightningAddress, .lnurlPay: return String(localized: "header_recipient", defaultValue: "Recipient")
+        case .onchain, .none: return String(localized: "header_address", defaultValue: "Recipient Address")
+        }
+    }
+
     private var addressCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(String(localized: "header_address", defaultValue: "Recipient Address"))
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(.secondary)
+            HStack {
+                Text(addressHeaderTitle)
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if hasCopiedAddress {
+                    Text(String(localized: "label_copied", defaultValue: "Copied"))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.orange)
+                        .transition(.opacity)
+                }
+            }
 
             VStack(alignment: .leading, spacing: 10) {
                 if let dest = model.destination {
-                    let chunked = AddressVisualChunker.chunkAddress(dest.rawDestination)
-                    AddressVisualChunkView(chunked: chunked)
-                }
-
-                HStack {
-                    Spacer()
-                    Button {
-                        if let raw = model.destination?.rawDestination {
-                            UIPasteboard.general.string = raw
-                            UINotificationFeedbackGenerator().notificationOccurred(.success)
-                        }
-                    } label: {
-                        Label(String(localized: "button_copy", defaultValue: "Copy"), systemImage: "doc.on.doc")
-                            .font(.subheadline)
-                    }
-                    .buttonStyle(.bordered)
+                    AddressVisualChunkView(representation: AddressVisualChunker.formatDestination(dest))
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
             .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+            .contentShape(Rectangle())
+            .onTapGesture { copyAddress() }
+        }
+    }
+
+    private func copyAddress() {
+        guard let raw = model.destination?.rawDestination else { return }
+        UIPasteboard.general.string = raw
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        withAnimation(.easeInOut(duration: 0.2)) { hasCopiedAddress = true }
+        Task {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            withAnimation(.easeInOut(duration: 0.2)) { hasCopiedAddress = false }
         }
     }
 
@@ -169,8 +178,7 @@ struct SendConfirmStepView: View {
             return PaymentFeeEstimator.estimateLightningFee(sats: sats, baseMsat: base, proportionalMillionths: prop)
         case .onchain:
             return PaymentFeeEstimator.estimateOnchainFee(feeRateSatVb: model.feeRateSatVb ?? 10, isSendAll: false)
-        case .none:
-            return 0
+        case .none: return 0
         }
     }
 
