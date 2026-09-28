@@ -67,6 +67,96 @@ final class PaymentDestinationClassifierTests: XCTestCase {
             return
         }
     }
+
+    func testClassifyBIP21WithLightningFallbackPrioritizesLightning() {
+        let invoiceStr = "lnbc1pn8g249pp5f6ytj32ty90jhvw69enf30hwfgdhyymjewywcmfjevflg6s4z86qdqqcqzzgxqyz5vqrzjqwnvuc0u4txn35cafc7w94gxvq5p3cu9dd95f7hlrh0fvs46wpvhdfjjzh2j9f7ye5qqqqryqqqqthqqpysp5mm832athgcal3m7h35sc29j63lmgzvwc5smfjh2es65elc2ns7dq9qrsgqu2xcje2gsnjp0wn97aknyd3h58an7sjj6nhcrm40846jxphv47958c6th76whmec8ttr2wmg6sxwchvxmsc00kqrzqcga6lvsf9jtqgqy5yexa"
+        let bip21 = "bitcoin:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq?amount=0.001&lightning=\(invoiceStr)"
+        let result = PaymentDestinationClassifier.classify(bip21)
+
+        guard case .valid(let dest) = result else {
+            XCTFail("Expected valid destination from BIP21")
+            return
+        }
+        guard case .bolt11 = dest else {
+            XCTFail("Expected .bolt11 to take priority over onchain fallback in BIP21")
+            return
+        }
+    }
+
+    func testClassifyBIP21UppercaseScheme() {
+        let bip21 = "BITCOIN:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
+        let result = PaymentDestinationClassifier.classify(bip21)
+        guard case .valid(let dest) = result, case .onchain(let addr) = dest else {
+            XCTFail("Expected valid onchain destination from uppercase BITCOIN: URI")
+            return
+        }
+        XCTAssertEqual(addr, "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq")
+    }
+
+    func testClassifyLegacyAndTestnetOnchainAddresses() {
+        let p2pkh = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+        let p2sh = "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy"
+        let testnet = "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"
+        let regtest = "bcrt1q6z64a9asgt5g09unxmg2sqn03jy30mnx4q9e0m"
+
+        XCTAssertEqual(PaymentDestinationClassifier.classify(p2pkh), .valid(.onchain(address: p2pkh)))
+        XCTAssertEqual(PaymentDestinationClassifier.classify(p2sh), .valid(.onchain(address: p2sh)))
+        XCTAssertEqual(PaymentDestinationClassifier.classify(testnet), .valid(.onchain(address: testnet)))
+        XCTAssertEqual(PaymentDestinationClassifier.classify(regtest), .valid(.onchain(address: regtest)))
+    }
+
+    func testClassifyInvalidAddressLengthsAndCharacters() {
+        // Less than 26 characters
+        let tooShort = "1A1zP1eP5QGefi2DMPTfTL5SL"
+        guard case .invalid = PaymentDestinationClassifier.classify(tooShort) else {
+            XCTFail("Expected invalid for address under 26 characters")
+            return
+        }
+
+        // More than 90 characters
+        let tooLong = "bc1" + String(repeating: "q", count: 88)
+        guard case .invalid = PaymentDestinationClassifier.classify(tooLong) else {
+            XCTFail("Expected invalid for address over 90 characters")
+            return
+        }
+
+        // Non-alphanumeric characters
+        let nonAlphanumeric = "bc1qar0srrr7xfkvy5l643!@#$dnw9re59gtzzwf5mdq"
+        guard case .invalid = PaymentDestinationClassifier.classify(nonAlphanumeric) else {
+            XCTFail("Expected invalid for non-alphanumeric address")
+            return
+        }
+    }
+
+    func testClassifyLightningAddressEdgeCases() {
+        // Valid plus-addressing
+        let plusAddr = "satoshi+tips@walletofsatoshi.com"
+        guard case .valid(let dest) = PaymentDestinationClassifier.classify(plusAddr),
+              case .lightningAddress(let handle, let domain, _) = dest else {
+            XCTFail("Expected valid lightning address with plus tag")
+            return
+        }
+        XCTAssertEqual(handle, "satoshi+tips")
+        XCTAssertEqual(domain, "walletofsatoshi.com")
+
+        // Spaces inside
+        guard case .invalid = PaymentDestinationClassifier.classify("satoshi @walletofsatoshi.com") else {
+            XCTFail("Expected invalid for address with spaces")
+            return
+        }
+
+        // Missing handle
+        guard case .invalid = PaymentDestinationClassifier.classify("@walletofsatoshi.com") else {
+            XCTFail("Expected invalid for missing handle")
+            return
+        }
+
+        // Missing domain
+        guard case .invalid = PaymentDestinationClassifier.classify("satoshi@") else {
+            XCTFail("Expected invalid for missing domain")
+            return
+        }
+    }
 }
 
 @MainActor
@@ -175,5 +265,69 @@ final class SendFlowModelTests: XCTestCase {
         model.amountInputText = ".001"
         model.normalizeAmountInput()
         XCTAssertEqual(model.amountInputText, "0.001")
+    }
+
+    func testComputeEffectiveSatsWithZeroOrNegativePrice() {
+        let model = SendFlowModel()
+        model.amountUnit = .usd
+        model.amountInputText = "100.00"
+
+        // Zero price
+        XCTAssertEqual(model.computeEffectiveSats(btcPrice: 0), 0)
+        // Negative price
+        XCTAssertEqual(model.computeEffectiveSats(btcPrice: -50_000), 0)
+    }
+
+    func testComputeEffectiveSatsWithMassiveAmount() {
+        let model = SendFlowModel()
+        model.amountUnit = .sats
+        model.amountInputText = "99999999999999999999999999"
+        // Double overflow / exceeds UInt64.max should return 0 safely without crashing
+        XCTAssertEqual(model.computeEffectiveSats(btcPrice: 65_000), 0)
+    }
+
+    func testApplyPercentageWithZeroBalanceOrPrice() {
+        let model = SendFlowModel()
+        model.amountUnit = .usd
+        model.applyPercentage(50, totalBalanceSats: 0, btcPrice: 65_000)
+        XCTAssertEqual(model.amountInputText, "")
+
+        model.applyPercentage(50, totalBalanceSats: 100_000, btcPrice: 0)
+        XCTAssertEqual(model.amountInputText, "")
+    }
+
+    func testProceedFromAmountWithLNURLBounds() throws {
+        let model = SendFlowModel()
+        let appState = AppState()
+        model.destination = .lnurlPay(url: try XCTUnwrap(URL(string: "https://ln.tips/user")))
+        model.lnurlParams = LNURLPayParams(
+            tag: "payRequest",
+            callback: "https://ln.tips/cb",
+            minSendable: 1_000_000, // 1,000 sats
+            maxSendable: 50_000_000, // 50,000 sats
+            metadata: "[]",
+            commentAllowed: nil
+        )
+
+        model.step = .amount
+        model.amountUnit = .sats
+
+        // Below minimum
+        model.amountInputText = "500"
+        model.proceedFromAmount(appState: appState)
+        XCTAssertEqual(model.step, .amount)
+        XCTAssertEqual(model.errorMessage, "Amount must be between 1000 and 50000 sats.")
+
+        // Above maximum
+        model.amountInputText = "60000"
+        model.proceedFromAmount(appState: appState)
+        XCTAssertEqual(model.step, .amount)
+        XCTAssertEqual(model.errorMessage, "Amount must be between 1000 and 50000 sats.")
+
+        // Exact minimum
+        model.amountInputText = "1000"
+        model.proceedFromAmount(appState: appState)
+        XCTAssertEqual(model.step, .confirm)
+        XCTAssertNil(model.errorMessage)
     }
 }
