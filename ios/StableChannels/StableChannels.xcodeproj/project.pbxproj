@@ -100,6 +100,7 @@
 		49AD1B4B2FEE77F40015A7D9 /* SeedDisplayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49AD1B4A2FEE77F40015A7D9 /* SeedDisplayView.swift */; };
 		49AD1B512FEE812E0015A7D9 /* NativeTimerAlert.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49AD1B502FEE812E0015A7D9 /* NativeTimerAlert.swift */; };
 		49BB390B0000000000000002 /* CurveProgressIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49BB390B0000000000000001 /* CurveProgressIndicator.swift */; };
+		49BB390B0000000000000004 /* LemniscateBloomIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49BB390B0000000000000003 /* LemniscateBloomIcon.swift */; };
 		49D113F42257E24445B49506 /* HomeActionButtonsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D2E016357DA1F64326A795 /* HomeActionButtonsView.swift */; };
 		49D13059527F63344795B77C /* HomeSavingsSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D213CA84EA308A42C9AB71 /* HomeSavingsSectionView.swift */; };
 		49D14393B7D122254E3EBBD4 /* HomeNotificationBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D27DDAAF62D43344798ADC /* HomeNotificationBannerView.swift */; };
@@ -331,6 +332,7 @@
 		49AD1B4A2FEE77F40015A7D9 /* SeedDisplayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeedDisplayView.swift; sourceTree = "<group>"; };
 		49AD1B502FEE812E0015A7D9 /* NativeTimerAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeTimerAlert.swift; sourceTree = "<group>"; };
 		49BB390B0000000000000001 /* CurveProgressIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurveProgressIndicator.swift; sourceTree = "<group>"; };
+		49BB390B0000000000000003 /* LemniscateBloomIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemniscateBloomIcon.swift; sourceTree = "<group>"; };
 		49D213CA84EA308A42C9AB71 /* HomeSavingsSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeSavingsSectionView.swift; sourceTree = "<group>"; };
 		49D2229F078D1812443B9072 /* ActionButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionButton.swift; sourceTree = "<group>"; };
 		49D27DDAAF62D43344798ADC /* HomeNotificationBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeNotificationBannerView.swift; sourceTree = "<group>"; };
@@ -689,6 +691,7 @@
 			children = (
 				4904A08B3055544100582069 /* BalanceScaleKinematics.swift */,
 				49BB390B0000000000000001 /* CurveProgressIndicator.swift */,
+				49BB390B0000000000000003 /* LemniscateBloomIcon.swift */,
 				49E4567F2FCC596F00B0CA85 /* FullscreenQRZoomView.swift */,
 				496A44412FCD4F75005AF12F /* QRCodeExtractor.swift */,
 				49E456802FCC596F00B0CA85 /* QRCodeUtility.swift */,
@@ -1223,6 +1226,7 @@
 				496A44432FCD4F75005AF12F /* QRInputToolbar.swift in Sources */,
 				496A44442FCD4F75005AF12F /* QRCodeExtractor.swift in Sources */,
 				49BB390B0000000000000002 /* CurveProgressIndicator.swift in Sources */,
+				49BB390B0000000000000004 /* LemniscateBloomIcon.swift in Sources */,
 				49E456822FCC596F00B0CA85 /* FullscreenQRZoomView.swift in Sources */,
 				49F0B0E42FC0EF3A003A3B89 /* StablePositionView.swift in Sources */,
 				49F0B0E52FC0EF3A003A3B89 /* AboutSettingsView.swift in Sources */,

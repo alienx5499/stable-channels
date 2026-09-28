@@ -153,11 +153,11 @@ struct OnChainSendView: View {
             }
 
             if sendAll {
-                Label(
-                    String(localized: "label_all_available_funds", defaultValue: "All available funds"),
-                    systemImage: "infinity"
-                )
-                .font(.headline)
+                HStack(spacing: 10) {
+                    LemniscateBloomIcon(isActive: true, size: 20, tint: .green)
+                    Text(String(localized: "label_all_available_funds", defaultValue: "All available funds"))
+                        .font(.headline)
+                }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 8)
             } else {
@@ -171,10 +171,16 @@ struct OnChainSendView: View {
                     )
                     .keyboardType(.decimalPad)
                     .font(.system(size: 36, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
                     .onChange(of: amountUSDStr) { _, new in
-                        amountUSDStr = InputSanitizer.decimal(new)
+                        let sanitized = InputSanitizer.decimal(new)
+                        amountUSDStr = sanitized.count > 16 ? String(sanitized.prefix(16)) : sanitized
                     }
                 }
+                let available = hasReadyChannel && !appState.isSweeping ? appState.totalBalanceSats : appState
+                    .spendableOnchainSats
+                let isExceeded = (amountSats ?? 0) > available
                 if let sats = amountSats, sats > 0 {
                     HStack(spacing: 6) {
                         Image(systemName: "bitcoinsign.circle.fill")
@@ -188,14 +194,28 @@ struct OnChainSendView: View {
                     .background(.ultraThinMaterial, in: Capsule())
                     .animation(.snappy, value: sats)
                 }
+                if isExceeded {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                        Text(String(
+                            localized: "error_amount_exceeds_balance",
+                            defaultValue: "Amount exceeds your balance"
+                        ))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.red)
+                    }
+                    .transition(.opacity)
+                }
             }
 
             Toggle(isOn: $sendAll) {
-                Label(
-                    String(localized: "toggle_send_all", defaultValue: "Send All"),
-                    systemImage: "infinity.circle"
-                )
-                .font(.subheadline)
+                HStack(spacing: 8) {
+                    LemniscateBloomIcon(isActive: sendAll, size: 16, tint: .green)
+                    Text(String(localized: "toggle_send_all", defaultValue: "Send All"))
+                        .font(.subheadline)
+                }
             }
             .tint(.green)
         }

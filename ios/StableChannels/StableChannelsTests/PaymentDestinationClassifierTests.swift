@@ -368,7 +368,7 @@ final class SendFlowModelTests: XCTestCase {
 
         XCTAssertEqual(model.step, .amount)
         XCTAssertNotNil(model.errorMessage)
-        XCTAssertTrue(model.errorMessage?.contains("Insufficient balance") == true)
+        XCTAssertTrue(model.errorMessage?.contains("Amount exceeds your balance") == true)
     }
 
     func testProceedFromAmount_allowsWhenAmountWithinBalance() throws {

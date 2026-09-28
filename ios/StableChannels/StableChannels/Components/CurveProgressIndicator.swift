@@ -1,10 +1,11 @@
 import SwiftUI
 
 struct CurveProgressIndicator: View {
-    enum CurveType {
+    enum CurveType: CaseIterable {
         case sixPetalSpiral
         case spiralSearch
         case roseCurve
+        case lemniscateBloom
     }
 
     var curve: CurveType = .roseCurve
@@ -31,13 +32,15 @@ struct CurveProgressIndicator: View {
         let center = CGPoint(x: size.width / 2.0, y: size.height / 2.0)
         let scale = min(size.width, size.height) / 100.0
 
-        let activePulseDuration = curve == .roseCurve ? 4.6 : pulseDuration
+        let activePulseDuration = (curve == .roseCurve) ? 4.6 : (curve == .lemniscateBloom ? 5.0 : pulseDuration)
         let pulseAngle = (time.truncatingRemainder(dividingBy: activePulseDuration) / activePulseDuration) * (2.0 * .pi)
         let detailScale = 0.52 + ((sin(pulseAngle + 0.55) + 1.0) / 2.0) * 0.48
 
-        let activeDuration = curve == .spiralSearch ? 7.8 : (curve == .roseCurve ? 5.4 : duration)
-        let activeSpan = curve == .spiralSearch ? 0.28 : (curve == .roseCurve ? 0.32 : trailSpan)
-        let activeParticles = curve == .roseCurve ? 64 : particleCount
+        let activeDuration = curve == .spiralSearch ? 7.8 :
+            (curve == .roseCurve ? 5.4 : (curve == .lemniscateBloom ? 5.6 : duration))
+        let activeSpan = curve == .spiralSearch ? 0.28 :
+            (curve == .roseCurve ? 0.32 : (curve == .lemniscateBloom ? 0.40 : trailSpan))
+        let activeParticles = curve == .roseCurve ? 64 : (curve == .lemniscateBloom ? 70 : particleCount)
         let progress = time.truncatingRemainder(dividingBy: activeDuration) / activeDuration
 
         if curve == .roseCurve {
@@ -51,10 +54,10 @@ struct CurveProgressIndicator: View {
 
         if showTrack {
             var trackPath = Path()
-            let steps = 120
+            let steps = (curve == .roseCurve || curve == .lemniscateBloom) ? 240 : 120
             for step in 0...steps {
                 let u = Double(step) / Double(steps)
-                let pt = pointOnCurve(curve: curve, progress: u, detailScale: detailScale)
+                let pt = Self.pointOnCurve(curve: curve, progress: u, detailScale: detailScale)
                 let mapped = CGPoint(
                     x: center.x + (pt.x - 50.0) * scale,
                     y: center.y + (pt.y - 50.0) * scale
@@ -75,7 +78,7 @@ struct CurveProgressIndicator: View {
             var u = (progress - tailOffset * activeSpan).truncatingRemainder(dividingBy: 1.0)
             if u < 0 { u += 1.0 }
 
-            let pt = pointOnCurve(curve: curve, progress: u, detailScale: detailScale)
+            let pt = Self.pointOnCurve(curve: curve, progress: u, detailScale: detailScale)
             let mapped = CGPoint(
                 x: center.x + (pt.x - 50.0) * scale,
                 y: center.y + (pt.y - 50.0) * scale
@@ -99,7 +102,7 @@ struct CurveProgressIndicator: View {
         }
     }
 
-    private func pointOnCurve(curve: CurveType, progress: Double, detailScale: Double) -> (x: Double, y: Double) {
+    static func pointOnCurve(curve: CurveType, progress: Double, detailScale: Double) -> (x: Double, y: Double) {
         let t = progress * 2.0 * .pi
         switch curve {
         case .sixPetalSpiral:
@@ -119,6 +122,15 @@ struct CurveProgressIndicator: View {
             let r = a * (0.72 + detailScale * 0.28) * cos(5.0 * t)
             let scaleFactor = 3.25
             return (50.0 + cos(t) * r * scaleFactor, 50.0 + sin(t) * r * scaleFactor)
+
+        case .lemniscateBloom:
+            let a = 20.0 + detailScale * 7.0
+            let sinT = sin(t)
+            let denom = 1.0 + sinT * sinT
+            return (
+                50.0 + (a * cos(t)) / denom,
+                50.0 + (a * sinT * cos(t)) / denom
+            )
         }
     }
 }
@@ -130,6 +142,7 @@ typealias MathCurveLoader = CurveProgressIndicator
         CurveProgressIndicator(curve: .roseCurve, size: 76, tint: .orange)
         CurveProgressIndicator(curve: .sixPetalSpiral, size: 76, tint: .orange)
         CurveProgressIndicator(curve: .spiralSearch, size: 76, tint: .blue)
+        CurveProgressIndicator(curve: .lemniscateBloom, size: 76, tint: .green)
     }
     .padding()
 }

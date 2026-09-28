@@ -7,7 +7,7 @@ struct SendAmountStepView: View {
     @FocusState private var isAmountFocused: Bool
 
     var body: some View {
-        ScrollView {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 16) {
                 if let payeeInfo = model.lnurlParams?.plainTextDescription {
                     payeeMetadataCard(description: payeeInfo)
@@ -24,6 +24,7 @@ struct SendAmountStepView: View {
                 Spacer(minLength: 24)
                 continueButton
             }
+            .frame(maxWidth: .infinity)
             .padding(.horizontal, 16)
             .padding(.top, 16)
         }
@@ -37,19 +38,34 @@ struct SendAmountStepView: View {
     private var availableBalanceCard: some View {
         let available = model.availableSpendableSats(appState: appState)
         let sats = model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
-        let isInsufficient = sats > available || available == 0
+        let isInsufficient = sats > available || (available == 0 && sats > 0)
         let usd = (Double(available) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
 
-        return HStack {
-            Text(String(localized: "label_available_balance", defaultValue: "Available:"))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            Text(verbatim: "\(usd.usdFormatted) (\(available.btcSpacedFormatted) BTC)")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(isInsufficient && sats > 0 ? Color.red : Color.secondary)
-            Spacer()
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(String(localized: "label_available_balance", defaultValue: "Available:"))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Text(verbatim: "\(usd.usdFormatted) (\(available.btcSpacedFormatted) BTC)")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(isInsufficient && sats > 0 ? Color.red : Color.secondary)
+                Spacer()
+            }
+
+            if isInsufficient && sats > 0 {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                    Text(String(localized: "error_amount_exceeds_balance", defaultValue: "Amount exceeds your balance"))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.red)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
         .padding(.horizontal, 4)
+        .animation(.easeInOut(duration: 0.2), value: isInsufficient)
     }
 
     private var heroAmountCard: some View {
@@ -61,6 +77,9 @@ struct SendAmountStepView: View {
                 Spacer()
                 unitMenuButton
             }
+
+            let textLength = max(model.amountInputText.count, model.amountUnit.placeholder.count)
+            let fieldWidth = min(CGFloat(textLength) * 19.0 + 24.0, 240.0)
 
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 if model.amountUnit == .usd {
@@ -74,11 +93,18 @@ struct SendAmountStepView: View {
                 )
                 .font(.system(size: 30, weight: .bold, design: .rounded))
                 .keyboardType(model.amountUnit == .sats ? .numberPad : .decimalPad)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: true, vertical: false)
+                .multilineTextAlignment(model.amountUnit == .usd ? .leading : .trailing)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .frame(width: fieldWidth)
                 .focused($isAmountFocused)
                 .onChange(of: model.amountInputText) { _, new in
-                    model.amountInputText = InputSanitizer.decimal(new, maxDecimals: model.amountUnit.maxDecimals)
+                    let sanitized = InputSanitizer.decimal(new, maxDecimals: model.amountUnit.maxDecimals)
+                    if sanitized.count > 16 {
+                        model.amountInputText = String(sanitized.prefix(16))
+                    } else {
+                        model.amountInputText = sanitized
+                    }
                 }
                 if model.amountUnit != .usd {
                     Text(model.amountUnit.symbolOrSuffix)
@@ -160,6 +186,7 @@ struct SendAmountStepView: View {
 
     private var presetPercentages: some View {
         let available = model.availableSpendableSats(appState: appState)
+        let isMax = available > 0 && model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice) == available
         return HStack(spacing: 12) {
             ForEach([25, 50, 100], id: \.self) { pct in
                 Button {
@@ -170,9 +197,12 @@ struct SendAmountStepView: View {
                     )
                 } label: {
                     if pct == 100 {
-                        Text(String(localized: "button_max", defaultValue: "Max"))
-                            .font(.subheadline.weight(.medium))
-                            .frame(maxWidth: .infinity)
+                        HStack(spacing: 5) {
+                            LemniscateBloomIcon(isActive: isMax, size: 13, tint: Color.sendBlue)
+                            Text(String(localized: "button_max", defaultValue: "Max"))
+                                .font(.subheadline.weight(.medium))
+                        }
+                        .frame(maxWidth: .infinity)
                     } else {
                         Text(verbatim: "\(pct)%")
                             .font(.subheadline.weight(.medium))

@@ -70,7 +70,7 @@ final class SendFlowModel {
                 let requiredSats = msat / 1000
                 let available = availableSpendableSats(appState: appState)
                 if requiredSats > available || available == 0 {
-                    errorMessage = "Insufficient balance for this invoice. Available: \(available.btcSpacedFormatted) BTC"
+                    errorMessage = "Amount exceeds your balance for this invoice. Available: \(available.btcSpacedFormatted) BTC"
                     return
                 }
                 self.step = .confirm
@@ -153,9 +153,9 @@ final class SendFlowModel {
             let price = appState.accountingBTCPrice
             let availableUSD = price > 0 ? (Double(available) / Double(Constants.satsInBTC)) * price : 0
             if amountUnit == .usd && price > 0 {
-                errorMessage = "Insufficient balance. Available: $\(String(format: "%.2f", availableUSD)) (\(available.btcSpacedFormatted) BTC)"
+                errorMessage = "Amount exceeds your balance. Available: $\(String(format: "%.2f", availableUSD)) (\(available.btcSpacedFormatted) BTC)"
             } else {
-                errorMessage = "Insufficient balance. Available: \(available.btcSpacedFormatted) BTC"
+                errorMessage = "Amount exceeds your balance. Available: \(available.btcSpacedFormatted) BTC"
             }
             return
         }
@@ -258,7 +258,7 @@ final class SendFlowModel {
         let available = availableSpendableSats(appState: appState)
         let totalDebit = sats + estimatedFeeSats(appState: appState)
         guard totalDebit <= available, available > 0 else {
-            errorMessage = "Insufficient balance. Available: \(available.btcSpacedFormatted) BTC"
+            errorMessage = "Amount exceeds your balance. Available: \(available.btcSpacedFormatted) BTC"
             return
         }
 
