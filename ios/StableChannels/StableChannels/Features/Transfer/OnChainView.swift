@@ -11,9 +11,15 @@ struct OnChainSendView: View {
     @State private var txid: String?
     @State private var spliceSuccess = false
     @State private var feeRateSatVb: UInt64?
+    @State private var selectedFeeTier: NetworkFeeSpeedTier = .standard
     @State private var showReview = false
     @State private var hasCopiedAddress = false
     @State private var reviewErrorMessage: String?
+
+    private var effectiveFeeRateSatVb: UInt64 {
+        let base = feeRateSatVb ?? 10
+        return selectedFeeTier.effectiveRate(baseRate: base)
+    }
 
     private var amountSats: UInt64? {
         convertedSats(price: appState.accountingBTCPrice)
@@ -319,6 +325,12 @@ struct OnChainSendView: View {
                     reviewAssetCard
                     reviewAddressCard
                     reviewRecipientReceivesCard
+                    NetworkFeeSelectorView(
+                        selectedTier: $selectedFeeTier,
+                        baseFeeRateSatVb: feeRateSatVb ?? 10,
+                        isSendAll: sendAll,
+                        btcPrice: appState.accountingBTCPrice
+                    )
                     reviewFeeAndTotalCard
 
                     if let error = reviewErrorMessage {
@@ -439,16 +451,16 @@ struct OnChainSendView: View {
                 if sendAll {
                     Text(String(localized: "label_all_available_funds", defaultValue: "All available funds"))
                         .font(.system(size: 24, weight: .bold, design: .rounded))
-                    if let feeRate = feeRateSatVb {
-                        let vbytes = Constants.estimatedOnchainSendAllVBytes
-                        let fee = feeRate * vbytes
-                        let bal = appState.onchainBalanceSats
-                        let netSats = bal > fee ? bal - fee : 0
-                        let usd = (Double(netSats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
-                        Text(verbatim: "≈ \(usd.usdFormatted) USD (\(netSats.btcSpacedFormatted) BTC)")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
+                    let fee = PaymentFeeEstimator.estimateOnchainFee(
+                        feeRateSatVb: effectiveFeeRateSatVb,
+                        isSendAll: true
+                    )
+                    let bal = appState.onchainBalanceSats
+                    let netSats = bal > fee ? bal - fee : 0
+                    let usd = (Double(netSats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
+                    Text(verbatim: "≈ \(usd.usdFormatted) USD (\(netSats.btcSpacedFormatted) BTC)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 } else if let sats = amountSats {
                     let usd = (Double(sats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
                     Text(verbatim: "\(usd.usdFormatted) USD")
@@ -465,8 +477,8 @@ struct OnChainSendView: View {
     }
 
     private var reviewFeeAndTotalCard: some View {
-        let vbytes = sendAll ? Constants.estimatedOnchainSendAllVBytes : Constants.estimatedOnchainSendVBytes
-        let feeSats = (feeRateSatVb ?? 10) * vbytes
+        let effectiveRate = effectiveFeeRateSatVb
+        let feeSats = PaymentFeeEstimator.estimateOnchainFee(feeRateSatVb: effectiveRate, isSendAll: sendAll)
         let baseSats = sendAll ? (appState.onchainBalanceSats > feeSats ? appState.onchainBalanceSats - feeSats : 0) :
             (amountSats ?? 0)
         let totalSats = sendAll ? appState.onchainBalanceSats : (baseSats + feeSats)
@@ -476,7 +488,7 @@ struct OnChainSendView: View {
 
         return VStack(spacing: 10) {
             HStack {
-                Text(String(localized: "label_total_fees", defaultValue: "Network Fee"))
+                Text(verbatim: "Network Fee (\(effectiveRate) sat/vB)")
                     .font(.subheadline).foregroundStyle(.secondary)
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
@@ -573,7 +585,10 @@ struct OnChainSendView: View {
                 spliceSuccess = true
                 showReview = false
             } else if sendAll {
-                let result = try appState.nodeService.sendAllOnchain(address: address)
+                let result = try appState.nodeService.sendAllOnchain(
+                    address: address,
+                    feeRateSatVb: effectiveFeeRateSatVb
+                )
                 txid = result
                 let price = appState.btcPrice
                 let onchainSats = appState.onchainBalanceSats
@@ -592,7 +607,11 @@ struct OnChainSendView: View {
                 appState.onchainSendBroadcasted(amountSats: onchainSats, isSendAll: true, txid: result)
                 showReview = false
             } else {
-                let result = try appState.nodeService.sendOnchain(address: address, amountSats: sats)
+                let result = try appState.nodeService.sendOnchain(
+                    address: address,
+                    amountSats: sats,
+                    feeRateSatVb: effectiveFeeRateSatVb
+                )
                 txid = result
                 let price = conversionPrice ?? 0
                 _ = try? appState.databaseService?.paymentRepo.recordPayment(

@@ -38,3 +38,53 @@ enum PaymentFeeEstimator {
         return result.overflow ? UInt64.max : result.partialValue
     }
 }
+
+/// Speed and confirmation target tiers for onchain Bitcoin network transactions.
+enum NetworkFeeSpeedTier: String, CaseIterable, Identifiable, Sendable {
+    case economy
+    case standard
+    case priority
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .economy: return "Economy"
+        case .standard: return "Standard"
+        case .priority: return "Priority"
+        }
+    }
+
+    /// Estimated confirmation timeframe description.
+    var estimatedTime: String {
+        switch self {
+        case .economy: return "> 1 hour"
+        case .standard: return "≈ 30–60 min"
+        case .priority: return "≈ 10–20 min"
+        }
+    }
+
+    /// Target block depth in the blockchain.
+    var targetBlocks: String {
+        switch self {
+        case .economy: return "12+ blocks"
+        case .standard: return "3–6 blocks"
+        case .priority: return "1–2 blocks"
+        }
+    }
+
+    /// Computes the effective fee rate in satoshis per virtual byte (sat/vB).
+    func effectiveRate(baseRate: UInt64) -> UInt64 {
+        let normalized = max(1, baseRate)
+        switch self {
+        case .economy:
+            let reduced = (normalized * 7) / 10
+            return max(1, reduced)
+        case .standard:
+            return normalized
+        case .priority:
+            let boosted = (normalized * 14) / 10
+            return max(normalized + 1, boosted)
+        }
+    }
+}

@@ -14,6 +14,7 @@ struct SendPaymentExecutor {
     static func execute(
         destination: SendDestination,
         effectiveSats: UInt64,
+        feeRateSatVb: UInt64? = nil,
         lnurlParams: LNURLPayParams?,
         lnurlComment: String,
         appState: AppState,
@@ -46,6 +47,7 @@ struct SendPaymentExecutor {
                 address: address,
                 effectiveSats: effectiveSats,
                 price: price,
+                feeRateSatVb: feeRateSatVb,
                 appState: appState
             )
         }
@@ -117,8 +119,13 @@ struct SendPaymentExecutor {
         return SendPaymentResult(sentAmountSats: effectiveSats, paymentId: "\(paymentId)", txid: nil)
     }
 
-    private static func sendOnchain(address: String, effectiveSats: UInt64, price: Double,
-                                    appState: AppState) async throws -> SendPaymentResult {
+    private static func sendOnchain(
+        address: String,
+        effectiveSats: UInt64,
+        price: Double,
+        feeRateSatVb: UInt64?,
+        appState: AppState
+    ) async throws -> SendPaymentResult {
         guard effectiveSats > 0 else { throw NSError(
             domain: "Send",
             code: 1,
@@ -146,7 +153,11 @@ struct SendPaymentExecutor {
             }
             return SendPaymentResult(sentAmountSats: effectiveSats, paymentId: nil, txid: nil)
         } else {
-            let txid = try appState.nodeService.sendOnchain(address: address, amountSats: effectiveSats)
+            let txid = try appState.nodeService.sendOnchain(
+                address: address,
+                amountSats: effectiveSats,
+                feeRateSatVb: feeRateSatVb
+            )
             appState.onchainSendBroadcasted(amountSats: effectiveSats, isSendAll: false, txid: txid)
             recordPayment(
                 id: txid,

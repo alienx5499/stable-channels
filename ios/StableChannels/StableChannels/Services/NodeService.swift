@@ -597,14 +597,18 @@ class NodeService: NodeServiceProtocol {
         return try node.onchainPayment().newAddress()
     }
 
-    func sendOnchain(address: String, amountSats: UInt64) throws -> Txid {
+    func sendOnchain(address: String, amountSats: UInt64, feeRateSatVb: UInt64? = nil) throws -> Txid {
         guard let node else { throw NodeServiceError.notRunning }
-        return try node.onchainPayment().sendToAddress(address: address, amountSats: amountSats, feeRate: nil)
+        let ldkFeeRate: FeeRate? = feeRateSatVb
+            .map { FeeRate.fromSatPerVbU32(satVb: UInt32(min(UInt64(UInt32.max), $0))) }
+        return try node.onchainPayment().sendToAddress(address: address, amountSats: amountSats, feeRate: ldkFeeRate)
     }
 
-    func sendAllOnchain(address: String) throws -> Txid {
+    func sendAllOnchain(address: String, feeRateSatVb: UInt64? = nil) throws -> Txid {
         guard let node else { throw NodeServiceError.notRunning }
-        return try node.onchainPayment().sendAllToAddress(address: address, retainReserves: false, feeRate: nil)
+        let ldkFeeRate: FeeRate? = feeRateSatVb
+            .map { FeeRate.fromSatPerVbU32(satVb: UInt32(min(UInt64(UInt32.max), $0))) }
+        return try node.onchainPayment().sendAllToAddress(address: address, retainReserves: false, feeRate: ldkFeeRate)
     }
 
     func syncWallets() throws {

@@ -12,6 +12,16 @@ struct SendConfirmStepView: View {
                 accountAssetCard
                 addressCard
                 recipientReceivesCard
+
+                if case .onchain = model.destination {
+                    NetworkFeeSelectorView(
+                        selectedTier: $model.selectedFeeTier,
+                        baseFeeRateSatVb: model.feeRateSatVb ?? 10,
+                        isSendAll: false,
+                        btcPrice: appState.accountingBTCPrice
+                    )
+                }
+
                 feeAndTotalCard
 
                 if let error = model.errorMessage {
@@ -144,6 +154,17 @@ struct SendConfirmStepView: View {
         }
     }
 
+    private var feeLabelText: String {
+        switch model.destination {
+        case .bolt11, .bolt12, .lightningAddress, .lnurlPay:
+            return String(localized: "label_routing_fee", defaultValue: "Routing Fee (Lightning)")
+        case .onchain:
+            return "Network Fee (\(model.effectiveFeeRateSatVb) sat/vB)"
+        case .none:
+            return String(localized: "label_total_fees", defaultValue: "Network Fee")
+        }
+    }
+
     private var feeAndTotalCard: some View {
         let feeSats = estimatedFeeSats
         let totalSats = model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice) + feeSats
@@ -152,7 +173,7 @@ struct SendConfirmStepView: View {
 
         return VStack(spacing: 10) {
             HStack {
-                Text(String(localized: "label_total_fees", defaultValue: "Network Fee"))
+                Text(feeLabelText)
                     .font(.subheadline).foregroundStyle(.secondary)
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
@@ -182,7 +203,10 @@ struct SendConfirmStepView: View {
             let prop = UInt64(Constants.lightningDefaultForwardingFeeProportionalMillionths)
             return PaymentFeeEstimator.estimateLightningFee(sats: sats, baseMsat: base, proportionalMillionths: prop)
         case .onchain:
-            return PaymentFeeEstimator.estimateOnchainFee(feeRateSatVb: model.feeRateSatVb ?? 10, isSendAll: false)
+            return PaymentFeeEstimator.estimateOnchainFee(
+                feeRateSatVb: model.effectiveFeeRateSatVb,
+                isSendAll: false
+            )
         case .none: return 0
         }
     }

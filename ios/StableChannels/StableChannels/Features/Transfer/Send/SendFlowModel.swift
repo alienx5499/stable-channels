@@ -25,6 +25,12 @@ final class SendFlowModel {
     var successTxid: String?
     var sentAmountSats: UInt64 = 0
     var feeRateSatVb: UInt64?
+    var selectedFeeTier: NetworkFeeSpeedTier = .standard
+
+    var effectiveFeeRateSatVb: UInt64 {
+        let base = feeRateSatVb ?? 10
+        return selectedFeeTier.effectiveRate(baseRate: base)
+    }
 
     let lnurlService: LNURLServiceProtocol
 
@@ -178,6 +184,7 @@ final class SendFlowModel {
             let result = try await SendPaymentExecutor.execute(
                 destination: dest,
                 effectiveSats: sats,
+                feeRateSatVb: effectiveFeeRateSatVb,
                 lnurlParams: lnurlParams,
                 lnurlComment: lnurlComment,
                 appState: appState,
