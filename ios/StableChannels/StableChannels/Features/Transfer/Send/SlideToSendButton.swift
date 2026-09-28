@@ -86,27 +86,31 @@ struct SlideToSendButton: View {
                             .onChanged { value in
                                 guard !hasTriggered, !isSending else { return }
                                 let newOffset = min(max(0, value.translation.width), maxDrag)
-                                if abs(newOffset - dragOffset) > 16 {
+                                let threshold = maxDrag * 0.90
+
+                                if (newOffset >= threshold && dragOffset < threshold) ||
+                                    (newOffset < threshold && dragOffset >= threshold) {
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                } else if abs(newOffset - dragOffset) > 20 {
                                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 }
                                 dragOffset = newOffset
-
-                                // Only execute when slid to the far right end (>= 95% of total travel)
-                                let completionThreshold = maxDrag * 0.95
-                                if newOffset >= completionThreshold {
+                            }
+                            .onEnded { _ in
+                                guard !hasTriggered, !isSending else { return }
+                                let completionThreshold = maxDrag * 0.90
+                                if dragOffset >= completionThreshold {
                                     hasTriggered = true
-                                    withAnimation(.easeOut(duration: 0.15)) {
+                                    withAnimation(.easeOut(duration: 0.12)) {
                                         dragOffset = maxDrag
                                     }
                                     UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
                                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                                     onConfirmed()
-                                }
-                            }
-                            .onEnded { _ in
-                                guard !hasTriggered else { return }
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
-                                    dragOffset = 0
+                                } else {
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+                                        dragOffset = 0
+                                    }
                                 }
                             }
                     )
