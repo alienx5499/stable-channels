@@ -67,31 +67,25 @@ enum AddressVisualChunker {
             return ChunkedAddress(chunks: [], raw: raw)
         }
 
-        var textChunks: [String] = []
-        let estimatedCount = (trimmed.count + chunkSize - 1) / chunkSize
-        textChunks.reserveCapacity(estimatedCount)
+        let totalChunks = (trimmed.count + chunkSize - 1) / chunkSize
+        var resultChunks: [ChunkedAddress.Chunk] = []
+        resultChunks.reserveCapacity(totalChunks)
 
         var currentIndex = trimmed.startIndex
+        var chunkIndex = 0
         while currentIndex < trimmed.endIndex {
             let nextIndex = trimmed.index(currentIndex, offsetBy: chunkSize, limitedBy: trimmed.endIndex) ?? trimmed
                 .endIndex
-            textChunks.append(String(trimmed[currentIndex..<nextIndex]))
-            currentIndex = nextIndex
-        }
-
-        let total = textChunks.count
-        var resultChunks: [ChunkedAddress.Chunk] = []
-        resultChunks.reserveCapacity(total)
-
-        for (index, chunkText) in textChunks.enumerated() {
+            let chunkText = String(trimmed[currentIndex..<nextIndex])
             let isHighlighted: Bool
-            if total <= 3 {
-                isHighlighted = (index == 0 || index == total - 1)
+            if totalChunks <= 3 {
+                isHighlighted = (chunkIndex == 0 || chunkIndex == totalChunks - 1)
             } else {
-                // High-security boundary highlighting: first 2 chunks and last 2 chunks
-                isHighlighted = (index < 2 || index >= total - 2)
+                isHighlighted = (chunkIndex < 2 || chunkIndex >= totalChunks - 2)
             }
-            resultChunks.append(ChunkedAddress.Chunk(id: index, text: chunkText, isHighlighted: isHighlighted))
+            resultChunks.append(ChunkedAddress.Chunk(id: chunkIndex, text: chunkText, isHighlighted: isHighlighted))
+            currentIndex = nextIndex
+            chunkIndex += 1
         }
 
         return ChunkedAddress(chunks: resultChunks, raw: trimmed)

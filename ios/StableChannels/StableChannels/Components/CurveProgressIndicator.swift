@@ -51,7 +51,7 @@ struct CurveProgressIndicator: View {
 
         if showTrack {
             var trackPath = Path()
-            let steps = curve == .roseCurve ? 240 : 120
+            let steps = 120
             for step in 0...steps {
                 let u = Double(step) / Double(steps)
                 let pt = pointOnCurve(curve: curve, progress: u, detailScale: detailScale)

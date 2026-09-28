@@ -162,7 +162,8 @@ enum PaymentDestinationClassifier {
     private static func isValidOnchainAddress(_ address: String) -> Bool {
         let count = address.count
         guard count >= 26 && count <= 90 else { return false }
-        let allowed = CharacterSet.alphanumerics
-        return address.unicodeScalars.allSatisfy { allowed.contains($0) }
+        return address.utf8.allSatisfy { byte in
+            (0x30...0x39).contains(byte) || (0x41...0x5A).contains(byte) || (0x61...0x7A).contains(byte)
+        }
     }
 }

@@ -40,8 +40,10 @@ struct OnChainSendView: View {
         guard let feeRateSatVb else {
             return String(localized: "info_fee_estimating", defaultValue: "Estimating network fee...")
         }
-        let vbytes = sendAll ? Constants.estimatedOnchainSendAllVBytes : Constants.estimatedOnchainSendVBytes
-        let feeSats = feeRateSatVb * vbytes
+        let feeSats = PaymentFeeEstimator.estimateOnchainFee(
+            feeRateSatVb: feeRateSatVb,
+            isSendAll: sendAll
+        )
         return String(
             format: String(
                 localized: "info_onchain_fee_estimate_sentence",
