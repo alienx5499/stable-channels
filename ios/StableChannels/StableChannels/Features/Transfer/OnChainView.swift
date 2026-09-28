@@ -381,7 +381,7 @@ struct OnChainSendView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(String(localized: "label_bitcoin", defaultValue: "Bitcoin"))
                         .font(.headline)
-                    Text(hasReadyChannel && !sendAll ? "Onchain • Splice-Out" : "Onchain • Standard")
+                    Text(verbatim: hasReadyChannel && !sendAll ? "Onchain • Splice-Out" : "Onchain • Standard")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
