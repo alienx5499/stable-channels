@@ -11,6 +11,9 @@ struct OnChainSendView: View {
     @State private var txid: String?
     @State private var spliceSuccess = false
     @State private var feeRateSatVb: UInt64?
+    @State private var showReview = false
+    @State private var hasCopiedAddress = false
+    @State private var reviewErrorMessage: String?
 
     private var amountSats: UInt64? {
         convertedSats(price: appState.accountingBTCPrice)
@@ -92,6 +95,9 @@ struct OnChainSendView: View {
             .navigationTitle(String(localized: "title_send_on_chain", defaultValue: "Send Onchain"))
             .navigationBarTitleDisplayMode(.inline)
             .qrInputToolbar(text: $address, sanitize: QRCodeExtractor.sanitizeAddress)
+            .sheet(isPresented: $showReview) {
+                reviewSheet
+            }
             .task {
                 feeRateSatVb = await appState.feeRateService.currentRate()
             }
@@ -261,18 +267,13 @@ struct OnChainSendView: View {
 
     private var sendButton: some View {
         Button {
-            Task { await send() }
+            openReview()
         } label: {
             HStack(spacing: 8) {
-                if isSending {
-                    ProgressView()
-                        .tint(.white)
-                } else {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.body.weight(.semibold))
-                    Text(String(localized: "button_send_payment", defaultValue: "Send"))
-                        .fontWeight(.semibold)
-                }
+                Image(systemName: "arrow.up.circle.fill")
+                    .font(.body.weight(.semibold))
+                Text(String(localized: "button_send_payment", defaultValue: "Send"))
+                    .fontWeight(.semibold)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
@@ -286,6 +287,217 @@ struct OnChainSendView: View {
         .animation(.easeInOut(duration: 0.2), value: amountSats)
     }
 
+    private func openReview() {
+        UIApplication.shared.sendAction(
+            Selector(("resignFirstResponder")),
+            to: nil,
+            from: nil,
+            for: nil
+        )
+        errorMessage = nil
+        reviewErrorMessage = nil
+
+        let trimmed = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            errorMessage = String(localized: "error_empty_address", defaultValue: "Please enter a destination address.")
+            return
+        }
+        if !sendAll && (amountSats ?? 0) == 0 {
+            errorMessage = String(
+                localized: "error_invalid_amount",
+                defaultValue: "Please enter an amount greater than 0."
+            )
+            return
+        }
+        showReview = true
+    }
+
+    private var reviewSheet: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    reviewAssetCard
+                    reviewAddressCard
+                    reviewRecipientReceivesCard
+                    reviewFeeAndTotalCard
+
+                    if let error = reviewErrorMessage {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .foregroundStyle(.red)
+                            Text(error)
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                            Spacer()
+                        }
+                        .padding(12)
+                        .background(
+                            Color(uiColor: .secondarySystemGroupedBackground),
+                            in: RoundedRectangle(cornerRadius: 12)
+                        )
+                    }
+
+                    Spacer(minLength: 16)
+
+                    SlideToSendButton(
+                        title: String(localized: "button_slide_to_send", defaultValue: "Slide to Send"),
+                        isSending: isSending
+                    ) {
+                        Task { await executeSendFromReview() }
+                    }
+                    .padding(.bottom, 16)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle(String(localized: "title_confirm_transaction", defaultValue: "Confirm transaction"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(String(localized: "button_cancel", defaultValue: "Cancel")) {
+                        showReview = false
+                    }
+                    .disabled(isSending)
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var reviewAssetCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(String(localized: "header_account_asset", defaultValue: "Asset & Network"))
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle().fill(Color.orange).frame(width: 36, height: 36)
+                    Image(systemName: "bitcoinsign").font(.system(size: 18, weight: .bold)).foregroundStyle(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(String(localized: "label_bitcoin", defaultValue: "Bitcoin"))
+                        .font(.headline)
+                    Text(hasReadyChannel && !sendAll ? "Onchain • Splice-Out" : "Onchain • Standard")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding(14)
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+        }
+    }
+
+    private var reviewAddressCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(String(localized: "header_address", defaultValue: "Recipient Address"))
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if hasCopiedAddress {
+                    Text(String(localized: "label_copied", defaultValue: "Copied"))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.orange)
+                        .transition(.opacity)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                AddressVisualChunkView(representation: .onchain(AddressVisualChunker.chunkAddress(address)))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+            .contentShape(Rectangle())
+            .onTapGesture { copyAddress() }
+        }
+    }
+
+    private func copyAddress() {
+        guard !address.isEmpty else { return }
+        UIPasteboard.general.string = address
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        withAnimation(.easeInOut(duration: 0.2)) { hasCopiedAddress = true }
+        Task {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            withAnimation(.easeInOut(duration: 0.2)) { hasCopiedAddress = false }
+        }
+    }
+
+    private var reviewRecipientReceivesCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(String(localized: "header_recipient_receives", defaultValue: "Recipient Receives"))
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 4) {
+                if sendAll {
+                    Text(String(localized: "label_all_available_funds", defaultValue: "All available funds"))
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                    if let feeRate = feeRateSatVb {
+                        let vbytes = Constants.estimatedOnchainSendAllVBytes
+                        let fee = feeRate * vbytes
+                        let bal = appState.onchainBalanceSats
+                        let netSats = bal > fee ? bal - fee : 0
+                        let usd = (Double(netSats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
+                        Text(verbatim: "≈ \(usd.usdFormatted) USD (\(netSats.btcSpacedFormatted) BTC)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } else if let sats = amountSats {
+                    let usd = (Double(sats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
+                    Text(verbatim: "\(usd.usdFormatted) USD")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                    Text(verbatim: "\(sats.btcSpacedFormatted) BTC")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+        }
+    }
+
+    private var reviewFeeAndTotalCard: some View {
+        let vbytes = sendAll ? Constants.estimatedOnchainSendAllVBytes : Constants.estimatedOnchainSendVBytes
+        let feeSats = (feeRateSatVb ?? 10) * vbytes
+        let baseSats = sendAll ? (appState.onchainBalanceSats > feeSats ? appState.onchainBalanceSats - feeSats : 0) :
+            (amountSats ?? 0)
+        let totalSats = sendAll ? appState.onchainBalanceSats : (baseSats + feeSats)
+
+        let feeUSD = (Double(feeSats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
+        let totalUSD = (Double(totalSats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
+
+        return VStack(spacing: 10) {
+            HStack {
+                Text(String(localized: "label_total_fees", defaultValue: "Network Fee"))
+                    .font(.subheadline).foregroundStyle(.secondary)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(verbatim: "≈ \(feeUSD.usdFormatted) USD").font(.subheadline.weight(.medium))
+                    Text(verbatim: "\(feeSats.btcSpacedFormatted) BTC").font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            Divider()
+            HStack {
+                Text(String(localized: "label_total_spent", defaultValue: "Total Debit")).font(.headline)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(verbatim: "≈ \(totalUSD.usdFormatted) USD").font(.headline)
+                    Text(verbatim: "\(totalSats.btcSpacedFormatted) BTC").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(14)
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+    }
+
     private func makeTxidAttributed(label: String, txid: String) -> AttributedString {
         var s = AttributedString(label)
         s.foregroundColor = .secondary
@@ -296,7 +508,7 @@ struct OnChainSendView: View {
         return s + t
     }
 
-    private func send() async {
+    private func executeSendFromReview() async {
         // Dismiss any active keyboard to avoid blocking system auth dialogs
         UIApplication.shared.sendAction(
             Selector(("resignFirstResponder")),
@@ -310,13 +522,13 @@ struct OnChainSendView: View {
             let authReason = sendAll ? "Confirm onchain withdrawal" : "Confirm onchain send"
             let authPassed = await appState.authenticate(reason: authReason)
             guard authPassed else {
-                errorMessage = appState.authError ?? "Authentication required to send."
+                reviewErrorMessage = appState.authError ?? "Authentication required to send."
                 return
             }
         }
 
         isSending = true
-        errorMessage = nil
+        reviewErrorMessage = nil
         defer { isSending = false }
 
         let conversionPrice = sendAll ? nil : appState.accountingBTCPrice
@@ -326,7 +538,7 @@ struct OnChainSendView: View {
         } else if let price = conversionPrice, let converted = convertedSats(price: price) {
             sats = converted
         } else {
-            errorMessage = String(
+            reviewErrorMessage = String(
                 localized: "error_price_unavailable",
                 defaultValue: "The BTC price is unavailable or stale. Refresh and try again."
             )
@@ -359,6 +571,7 @@ struct OnChainSendView: View {
                     throw error
                 }
                 spliceSuccess = true
+                showReview = false
             } else if sendAll {
                 let result = try appState.nodeService.sendAllOnchain(address: address)
                 txid = result
@@ -377,6 +590,7 @@ struct OnChainSendView: View {
                     address: address
                 )
                 appState.onchainSendBroadcasted(amountSats: onchainSats, isSendAll: true, txid: result)
+                showReview = false
             } else {
                 let result = try appState.nodeService.sendOnchain(address: address, amountSats: sats)
                 txid = result
@@ -394,9 +608,10 @@ struct OnChainSendView: View {
                     address: address
                 )
                 appState.onchainSendBroadcasted(amountSats: sats, isSendAll: false, txid: result)
+                showReview = false
             }
         } catch {
-            errorMessage = error.localizedDescription
+            reviewErrorMessage = error.localizedDescription
         }
     }
 }
