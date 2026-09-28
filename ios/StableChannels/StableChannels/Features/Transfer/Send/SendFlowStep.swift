@@ -38,7 +38,7 @@ enum SendAmountUnit: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .usd: return "0.00"
         case .sats: return "0"
-        case .btc: return "0.00000000"
+        case .btc: return "0.0"
         }
     }
 

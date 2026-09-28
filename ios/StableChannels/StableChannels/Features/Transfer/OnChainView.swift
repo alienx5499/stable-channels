@@ -586,75 +586,28 @@ struct OnChainSendView: View {
         }
 
         do {
-            // If channel exists, route through splice-out
-            if let channel = appState.nodeService.channels.first(where: { $0.isChannelReady }), !sendAll {
-                guard !appState.isSweeping else {
-                    throw NSError(
-                        domain: "",
-                        code: 0,
-                        userInfo: [NSLocalizedDescriptionKey: String(
-                            localized: "error_splice_in_progress",
-                            defaultValue: "A splice is already in progress — try again shortly"
-                        )]
-                    )
-                }
-                try appState.beginSpliceOut(amountSats: sats, address: address)
-                do {
-                    try appState.nodeService.spliceOut(
-                        userChannelId: channel.userChannelId,
-                        counterpartyNodeId: channel.counterpartyNodeId,
-                        address: address,
-                        amountSats: sats
-                    )
-                } catch {
-                    appState.cancelPendingSpliceStart()
-                    throw error
-                }
-                spliceSuccess = true
-                showReview = false
-            } else if sendAll {
-                let result = try appState.nodeService.sendAllOnchain(
+            if sendAll {
+                let result = try await SendPaymentExecutor.sendAllOnchain(
                     address: address,
-                    feeRateSatVb: effectiveFeeRateSatVb
+                    price: appState.btcPrice,
+                    feeRateSatVb: effectiveFeeRateSatVb,
+                    appState: appState
                 )
-                txid = result
-                let price = appState.btcPrice
-                let onchainSats = appState.onchainBalanceSats
-                _ = try? appState.databaseService?.paymentRepo.recordPayment(
-                    paymentId: result,
-                    paymentType: "onchain",
-                    direction: "sent",
-                    amountMsat: onchainSats * 1000,
-                    amountUSD: price > 0 ? Double(onchainSats) / Double(Constants.satsInBTC) * price : nil,
-                    btcPrice: price > 0 ? price : nil,
-                    counterparty: nil,
-                    status: "pending",
-                    txid: result,
-                    address: address
-                )
-                appState.onchainSendBroadcasted(amountSats: onchainSats, isSendAll: true, txid: result)
+                txid = result.txid
                 showReview = false
             } else {
-                let result = try appState.nodeService.sendOnchain(
+                let result = try await SendPaymentExecutor.sendOnchain(
                     address: address,
-                    amountSats: sats,
-                    feeRateSatVb: effectiveFeeRateSatVb
+                    effectiveSats: sats,
+                    price: conversionPrice ?? 0,
+                    feeRateSatVb: effectiveFeeRateSatVb,
+                    appState: appState
                 )
-                txid = result
-                let price = conversionPrice ?? 0
-                _ = try? appState.databaseService?.paymentRepo.recordPayment(
-                    paymentId: result,
-                    paymentType: "onchain",
-                    direction: "sent",
-                    amountMsat: sats * 1000,
-                    amountUSD: price > 0 ? Double(sats) / Double(Constants.satsInBTC) * price : nil,
-                    btcPrice: price > 0 ? price : nil,
-                    counterparty: nil,
-                    status: "pending",
-                    txid: result,
-                    address: address
-                )
-                appState.onchainSendBroadcasted(amountSats: sats, isSendAll: false, txid: result)
+                if result.txid != nil {
+                    txid = result.txid
+                } else {
+                    spliceSuccess = true
+                }
                 showReview = false
             }
         } catch {

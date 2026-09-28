@@ -78,8 +78,8 @@ struct SendAmountStepView: View {
                 unitMenuButton
             }
 
-            let textLength = max(model.amountInputText.count, model.amountUnit.placeholder.count)
-            let fieldWidth = min(CGFloat(textLength) * 19.0 + 24.0, 240.0)
+            let displayText = model.amountInputText.isEmpty ? model.amountUnit.placeholder : model.amountInputText
+            let fieldWidth = min(CGFloat(displayText.count) * 19.0 + 20.0, 240.0)
 
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 if model.amountUnit == .usd {
