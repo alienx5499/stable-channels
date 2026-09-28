@@ -6,6 +6,7 @@ struct NetworkFeeSelectorView: View {
     let baseFeeRateSatVb: UInt64
     let isSendAll: Bool
     let btcPrice: Double
+    var showExplanation: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -25,9 +26,11 @@ struct NetworkFeeSelectorView: View {
                 }
             }
 
-            Text(verbatim: feeExplanationText)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            if showExplanation {
+                Text(verbatim: feeExplanationText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(14)
         .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))

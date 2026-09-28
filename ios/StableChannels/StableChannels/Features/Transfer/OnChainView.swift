@@ -36,31 +36,12 @@ struct OnChainSendView: View {
         appState.nodeService.channels.contains { $0.isChannelReady }
     }
 
-    private var feeEstimateText: String {
-        guard let feeRateSatVb else {
-            return String(localized: "info_fee_estimating", defaultValue: "Estimating network fee...")
-        }
-        let feeSats = PaymentFeeEstimator.estimateOnchainFee(
-            feeRateSatVb: feeRateSatVb,
-            isSendAll: sendAll
-        )
-        return String(
-            format: String(
-                localized: "info_onchain_fee_estimate_sentence",
-                defaultValue: "Expected network fee: ~%@ BTC (%llu sat/vB)"
-            ),
-            feeSats.btcSpacedFormatted,
-            feeRateSatVb
-        )
-    }
-
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
                     addressCard
                     amountCard
-                    infoCard(icon: "bitcoinsign.circle", text: feeEstimateText)
                     if hasReadyChannel {
                         infoCard(
                             icon: "arrow.up.arrow.down",
@@ -152,14 +133,34 @@ struct OnChainSendView: View {
                 Spacer()
             }
 
+            let available = hasReadyChannel && !appState.isSweeping ? appState.totalBalanceSats : appState
+                .spendableOnchainSats
+            let availableUSD = appState
+                .accountingBTCPrice > 0 ? (Double(available) / Double(Constants.satsInBTC)) * appState
+                .accountingBTCPrice : 0
+
             if sendAll {
-                HStack(spacing: 10) {
-                    LemniscateBloomIcon(isActive: true, size: 20, tint: .green)
-                    Text(String(localized: "label_all_available_funds", defaultValue: "All available funds"))
-                        .font(.headline)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(String(localized: "label_dollar_sign", defaultValue: "$"))
+                        .font(.system(size: 36, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Text(verbatim: String(format: "%.2f", availableUSD))
+                        .font(.system(size: 36, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 8)
+                if available > 0 {
+                    HStack(spacing: 6) {
+                        Image(systemName: "bitcoinsign.circle.fill")
+                            .foregroundStyle(.primary)
+                        Text("\(available.btcSpacedFormatted) BTC")
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.ultraThinMaterial, in: Capsule())
+                }
             } else {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(String(localized: "label_dollar_sign", defaultValue: "$"))
@@ -178,8 +179,6 @@ struct OnChainSendView: View {
                         amountUSDStr = sanitized.count > 16 ? String(sanitized.prefix(16)) : sanitized
                     }
                 }
-                let available = hasReadyChannel && !appState.isSweeping ? appState.totalBalanceSats : appState
-                    .spendableOnchainSats
                 let isExceeded = (amountSats ?? 0) > available
                 if let sats = amountSats, sats > 0 {
                     HStack(spacing: 6) {
@@ -342,47 +341,54 @@ struct OnChainSendView: View {
 
     private var reviewSheet: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 16) {
-                    reviewAssetCard
-                    reviewAddressCard
-                    reviewRecipientReceivesCard
-                    NetworkFeeSelectorView(
-                        selectedTier: $selectedFeeTier,
-                        baseFeeRateSatVb: feeRateSatVb ?? 10,
-                        isSendAll: sendAll,
-                        btcPrice: appState.accountingBTCPrice
-                    )
-                    reviewFeeAndTotalCard
-
-                    if let error = reviewErrorMessage {
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.circle.fill")
-                                .foregroundStyle(.red)
-                            Text(error)
-                                .font(.footnote)
-                                .foregroundStyle(.red)
-                            Spacer()
-                        }
-                        .padding(12)
-                        .background(
-                            Color(uiColor: .secondarySystemGroupedBackground),
-                            in: RoundedRectangle(cornerRadius: 12)
+            VStack(spacing: 0) {
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 12) {
+                        reviewAssetCard
+                        reviewAddressCard
+                        reviewRecipientReceivesCard
+                        NetworkFeeSelectorView(
+                            selectedTier: $selectedFeeTier,
+                            baseFeeRateSatVb: feeRateSatVb ?? 10,
+                            isSendAll: sendAll,
+                            btcPrice: appState.accountingBTCPrice,
+                            showExplanation: false
                         )
+                        reviewFeeAndTotalCard
+
+                        if let error = reviewErrorMessage {
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .foregroundStyle(.red)
+                                Text(error)
+                                    .font(.footnote)
+                                    .foregroundStyle(.red)
+                                Spacer()
+                            }
+                            .padding(12)
+                            .background(
+                                Color(uiColor: .secondarySystemGroupedBackground),
+                                in: RoundedRectangle(cornerRadius: 12)
+                            )
+                        }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
+                }
+                .scrollBounceBehavior(.basedOnSize)
 
-                    Spacer(minLength: 16)
-
+                VStack(spacing: 4) {
                     SlideToSendButton(
                         title: String(localized: "button_slide_to_send", defaultValue: "Slide to Send"),
                         isSending: isSending
                     ) {
                         Task { await executeSendFromReview() }
                     }
-                    .padding(.bottom, 16)
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle(String(localized: "title_confirm_transaction", defaultValue: "Confirm transaction"))
@@ -471,8 +477,6 @@ struct OnChainSendView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 if sendAll {
-                    Text(String(localized: "label_all_available_funds", defaultValue: "All available funds"))
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
                     let fee = PaymentFeeEstimator.estimateOnchainFee(
                         feeRateSatVb: effectiveFeeRateSatVb,
                         isSendAll: true
@@ -480,7 +484,9 @@ struct OnChainSendView: View {
                     let bal = appState.onchainBalanceSats
                     let netSats = bal > fee ? bal - fee : 0
                     let usd = (Double(netSats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
-                    Text(verbatim: "≈ \(usd.usdFormatted) USD (\(netSats.btcSpacedFormatted) BTC)")
+                    Text(verbatim: "\(usd.usdFormatted) USD")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                    Text(verbatim: "\(netSats.btcSpacedFormatted) BTC")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 } else if let sats = amountSats {

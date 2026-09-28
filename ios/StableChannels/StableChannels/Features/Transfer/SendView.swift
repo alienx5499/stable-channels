@@ -67,6 +67,8 @@ struct SendView: View {
                 model.feeRateSatVb = await appState.feeRateService.currentRate()
             }
         }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
     }
 
     private var navigationTitle: String {

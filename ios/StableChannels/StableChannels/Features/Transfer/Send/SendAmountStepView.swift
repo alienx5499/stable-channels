@@ -254,6 +254,13 @@ struct SendAmountStepView: View {
         let isBlocked = sats == 0 || sats > available || available == 0
 
         return Button {
+            isAmountFocused = false
+            UIApplication.shared.sendAction(
+                Selector(("resignFirstResponder")),
+                to: nil,
+                from: nil,
+                for: nil
+            )
             model.proceedFromAmount(appState: appState)
         } label: {
             Text(String(localized: "button_continue", defaultValue: "Continue"))

@@ -7,31 +7,38 @@ struct SendConfirmStepView: View {
     @State private var hasCopiedAddress = false
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                accountAssetCard
-                addressCard
-                recipientReceivesCard
+        VStack(spacing: 0) {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 10) {
+                    accountAssetCard
+                    addressCard
+                    recipientReceivesCard
 
-                if case .onchain = model.destination {
-                    NetworkFeeSelectorView(
-                        selectedTier: $model.selectedFeeTier,
-                        baseFeeRateSatVb: model.feeRateSatVb ?? 10,
-                        isSendAll: false,
-                        btcPrice: appState.accountingBTCPrice
-                    )
+                    if case .onchain = model.destination {
+                        NetworkFeeSelectorView(
+                            selectedTier: $model.selectedFeeTier,
+                            baseFeeRateSatVb: model.feeRateSatVb ?? 10,
+                            isSendAll: false,
+                            btcPrice: appState.accountingBTCPrice,
+                            showExplanation: false
+                        )
+                    }
+
+                    feeAndTotalCard
+
+                    if isInsufficientBalance {
+                        errorBanner("Insufficient balance. Total debit exceeds available funds.")
+                    } else if let error = model.errorMessage {
+                        errorBanner(error)
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+            }
+            .scrollBounceBehavior(.basedOnSize)
 
-                feeAndTotalCard
-
-                if isInsufficientBalance {
-                    errorBanner("Insufficient balance. Total debit exceeds available funds.")
-                } else if let error = model.errorMessage {
-                    errorBanner(error)
-                }
-
-                Spacer(minLength: 16)
-
+            VStack(spacing: 4) {
                 SlideToSendButton(
                     title: String(localized: "button_slide_to_send", defaultValue: "Slide to Send"),
                     sendingTitle: sendingStatusText,
@@ -41,10 +48,18 @@ struct SendConfirmStepView: View {
                 }
                 .disabled(isInsufficientBalance)
                 .opacity(isInsufficientBalance ? 0.5 : 1.0)
-                .padding(.bottom, 16)
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
+            .padding(.top, 6)
+            .padding(.bottom, 16)
+        }
+        .onAppear {
+            UIApplication.shared.sendAction(
+                Selector(("resignFirstResponder")),
+                to: nil,
+                from: nil,
+                for: nil
+            )
         }
     }
 
@@ -64,15 +79,15 @@ struct SendConfirmStepView: View {
     }
 
     private var accountAssetCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(String(localized: "header_account_asset", defaultValue: "Asset & Network"))
-                .font(.footnote.weight(.medium))
+                .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 12) {
                 ZStack {
-                    Circle().fill(Color.orange).frame(width: 36, height: 36)
-                    Image(systemName: "bitcoinsign").font(.system(size: 18, weight: .bold)).foregroundStyle(.white)
+                    Circle().fill(Color.orange).frame(width: 32, height: 32)
+                    Image(systemName: "bitcoinsign").font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -84,7 +99,7 @@ struct SendConfirmStepView: View {
                 }
                 Spacer()
             }
-            .padding(14)
+            .padding(12)
             .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
         }
     }
@@ -115,10 +130,10 @@ struct SendConfirmStepView: View {
     }
 
     private var addressCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(addressHeaderTitle)
-                    .font(.footnote.weight(.medium))
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
                 Spacer()
                 if hasCopiedAddress {
@@ -129,13 +144,13 @@ struct SendConfirmStepView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 if let dest = model.destination {
                     AddressVisualChunkView(representation: AddressVisualChunker.formatDestination(dest))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
+            .padding(12)
             .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
             .contentShape(Rectangle())
             .onTapGesture { copyAddress() }
@@ -154,22 +169,22 @@ struct SendConfirmStepView: View {
     }
 
     private var recipientReceivesCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(String(localized: "header_recipient_receives", defaultValue: "Recipient Receives"))
-                .font(.footnote.weight(.medium))
+                .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 let sats = model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
                 let usd = (Double(sats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
                 Text("\(usd.usdFormatted) USD")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
                 Text("\(sats.btcSpacedFormatted) BTC")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
+            .padding(12)
             .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
         }
     }
@@ -191,7 +206,7 @@ struct SendConfirmStepView: View {
         let feeUSD = (Double(feeSats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
         let totalUSD = (Double(totalSats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
 
-        return VStack(spacing: 10) {
+        return VStack(spacing: 8) {
             HStack {
                 Text(feeLabelText)
                     .font(.subheadline).foregroundStyle(.secondary)
@@ -211,7 +226,7 @@ struct SendConfirmStepView: View {
                 }
             }
         }
-        .padding(14)
+        .padding(12)
         .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
     }
 
