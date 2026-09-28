@@ -68,8 +68,10 @@ enum AddressVisualChunker {
         }
 
         var textChunks: [String] = []
-        var currentIndex = trimmed.startIndex
+        let estimatedCount = (trimmed.count + chunkSize - 1) / chunkSize
+        textChunks.reserveCapacity(estimatedCount)
 
+        var currentIndex = trimmed.startIndex
         while currentIndex < trimmed.endIndex {
             let nextIndex = trimmed.index(currentIndex, offsetBy: chunkSize, limitedBy: trimmed.endIndex) ?? trimmed
                 .endIndex
@@ -86,7 +88,7 @@ enum AddressVisualChunker {
             if total <= 3 {
                 isHighlighted = (index == 0 || index == total - 1)
             } else {
-                // Highlight first 2 chunks and last 2 chunks
+                // High-security boundary highlighting: first 2 chunks and last 2 chunks
                 isHighlighted = (index < 2 || index >= total - 2)
             }
             resultChunks.append(ChunkedAddress.Chunk(id: index, text: chunkText, isHighlighted: isHighlighted))
