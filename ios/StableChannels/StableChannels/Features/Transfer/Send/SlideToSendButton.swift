@@ -5,6 +5,7 @@ import UIKit
 /// Prevents accidental payment broadcasts while providing tactile feedback.
 struct SlideToSendButton: View {
     let title: String
+    var sendingTitle: String?
     let isSending: Bool
     let onConfirmed: () -> Void
 
@@ -47,7 +48,7 @@ struct SlideToSendButton: View {
                         Spacer()
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        Text(String(localized: "label_broadcasting", defaultValue: "Broadcasting..."))
+                        Text(sendingTitle ?? String(localized: "label_broadcasting", defaultValue: "Broadcasting..."))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.white)
                         Spacer()

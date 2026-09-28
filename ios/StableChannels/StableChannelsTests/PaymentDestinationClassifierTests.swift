@@ -389,4 +389,51 @@ final class SendFlowModelTests: XCTestCase {
         XCTAssertEqual(model.step, .confirm)
         XCTAssertNil(model.errorMessage)
     }
+
+    func testEstimatedFeeSats_calculatesExpectedFees() {
+        let appState = AppState()
+        let model = SendFlowModel()
+
+        // Onchain target
+        model.inputText = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
+        model.amountUnit = .sats
+        model.amountInputText = "50000"
+        model.feeRateSatVb = 10
+        model.selectedFeeTier = .standard
+
+        let onchainFee = model.estimatedFeeSats(appState: appState)
+        // Standard onchain send: 140 vB * 10 sat/vB = 1400 sats
+        XCTAssertEqual(onchainFee, 1_400)
+
+        // Priority tier: 14 sat/vB -> 140 * 14 = 1960 sats
+        model.selectedFeeTier = .priority
+        XCTAssertEqual(model.estimatedFeeSats(appState: appState), 1_960)
+    }
+
+    func testIsInsufficientBalance_considersTotalDebitWithFee() {
+        let appState = AppState()
+        appState.spendableOnchainSats = 0
+        let model = SendFlowModel()
+
+        model.inputText = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
+        model.amountUnit = .sats
+
+        // When spendable balance is 0, any send is insufficient
+        model.amountInputText = "100"
+        XCTAssertTrue(model.isInsufficientBalance(appState: appState))
+    }
+
+    func testEffectiveFeeRate_tierScaling() {
+        let model = SendFlowModel()
+        model.feeRateSatVb = 20
+
+        model.selectedFeeTier = .economy
+        XCTAssertEqual(model.effectiveFeeRateSatVb, 14)
+
+        model.selectedFeeTier = .standard
+        XCTAssertEqual(model.effectiveFeeRateSatVb, 20)
+
+        model.selectedFeeTier = .priority
+        XCTAssertEqual(model.effectiveFeeRateSatVb, 28)
+    }
 }

@@ -1541,6 +1541,14 @@ class AppState {
                     try? databaseService?.paymentRepo.updatePaymentStatus(
                         paymentId: "\(pid)", status: "failed"
                     )
+                    NotificationCenter.default.post(
+                        name: .paymentFailed,
+                        object: nil,
+                        userInfo: [
+                            "paymentId": "\(pid)",
+                            "errorMessage": WalletErrorMessages.paymentFailure(reason)
+                        ]
+                    )
                 }
                 // If this is the in-flight stability send, the failure means no sats
                 // moved — clear the marker so future sends are unblocked (no debit).
@@ -2089,6 +2097,13 @@ class AppState {
                 paymentId: pidStr,
                 status: "completed",
                 feeMsat: feePaidMsat
+            )
+            var userInfo: [String: Any] = ["paymentId": pidStr, "paymentHash": paymentHashStr]
+            if let fee = feePaidMsat { userInfo["feePaidMsat"] = fee }
+            NotificationCenter.default.post(
+                name: .paymentSettled,
+                object: nil,
+                userInfo: userInfo
             )
         }
 

@@ -102,19 +102,51 @@ final class SendFlowModel {
         }
     }
 
+    func estimatedFeeSats(appState: AppState) -> UInt64 {
+        let sats = computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
+        switch destination {
+        case .bolt11, .bolt12, .lightningAddress, .lnurlPay:
+            let base = UInt64(Constants.lightningDefaultForwardingFeeBaseMsat)
+            let prop = UInt64(Constants.lightningDefaultForwardingFeeProportionalMillionths)
+            return PaymentFeeEstimator.estimateLightningFee(sats: sats, baseMsat: base, proportionalMillionths: prop)
+        case .onchain:
+            return PaymentFeeEstimator.estimateOnchainFee(
+                feeRateSatVb: effectiveFeeRateSatVb,
+                isSendAll: false
+            )
+        case .none:
+            return 0
+        }
+    }
+
+    func isInsufficientBalance(appState: AppState) -> Bool {
+        let sats = computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
+        let totalDebit = sats + estimatedFeeSats(appState: appState)
+        let available = availableSpendableSats(appState: appState)
+        return totalDebit > available || available == 0
+    }
+
     func proceedFromAmount(appState: AppState) {
         normalizeAmountInput()
         errorMessage = nil
+
+        let available = availableSpendableSats(appState: appState)
+        guard available > 0 else {
+            errorMessage = "Insufficient balance. Your available balance is 0 sats."
+            return
+        }
+
         let sats = computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
         guard sats > 0 else {
             errorMessage = "Please enter an amount greater than 0."
             return
         }
 
-        let available = availableSpendableSats(appState: appState)
-        guard available > 0 else {
-            errorMessage = "Insufficient balance. Your available balance is 0 sats."
-            return
+        if let params = lnurlParams {
+            if sats < params.minSats || sats > params.maxSats {
+                errorMessage = "Amount must be between \(params.minSats) and \(params.maxSats) sats."
+                return
+            }
         }
 
         guard sats <= available else {
@@ -126,13 +158,6 @@ final class SendFlowModel {
                 errorMessage = "Insufficient balance. Available: \(available.btcSpacedFormatted) BTC"
             }
             return
-        }
-
-        if let params = lnurlParams {
-            if sats < params.minSats || sats > params.maxSats {
-                errorMessage = "Amount must be between \(params.minSats) and \(params.maxSats) sats."
-                return
-            }
         }
 
         self.step = .confirm
@@ -231,7 +256,8 @@ final class SendFlowModel {
             return
         }
         let available = availableSpendableSats(appState: appState)
-        guard sats <= available, available > 0 else {
+        let totalDebit = sats + estimatedFeeSats(appState: appState)
+        guard totalDebit <= available, available > 0 else {
             errorMessage = "Insufficient balance. Available: \(available.btcSpacedFormatted) BTC"
             return
         }
@@ -246,12 +272,102 @@ final class SendFlowModel {
                 appState: appState,
                 lnurlService: lnurlService
             )
-            sentAmountSats = result.sentAmountSats
-            successPaymentId = result.paymentId
-            successTxid = result.txid
-            step = .success
+
+            // Onchain broadcasts immediately into mempool
+            if let txid = result.txid {
+                sentAmountSats = result.sentAmountSats
+                successTxid = txid
+                successPaymentId = result.paymentId
+                step = .success
+                return
+            }
+
+            // Lightning settlement pipeline (BOLT11, BOLT12, LNURL)
+            if let pid = result.paymentId {
+                let timeout: TimeInterval
+                switch dest {
+                case .bolt12:
+                    timeout = 10.0
+                case .bolt11, .lightningAddress, .lnurlPay:
+                    timeout = 7.0
+                case .onchain:
+                    timeout = 0
+                }
+
+                let outcome = await awaitPaymentSettlement(paymentId: pid, timeoutSeconds: timeout)
+                switch outcome {
+                case .settled:
+                    sentAmountSats = result.sentAmountSats
+                    successPaymentId = pid
+                    successTxid = nil
+                    step = .success
+                case .failed(let reason):
+                    errorMessage = reason
+                case .timedOut:
+                    sentAmountSats = result.sentAmountSats
+                    successPaymentId = pid
+                    successTxid = nil
+                    step = .success
+                }
+            }
         } catch {
             errorMessage = WalletErrorMessages.operation(error, fallback: error.localizedDescription)
+        }
+    }
+
+    private enum PaymentSettlementOutcome: Sendable {
+        case settled(paymentHash: String?)
+        case failed(reason: String)
+        case timedOut
+    }
+
+    private func awaitPaymentSettlement(
+        paymentId: String,
+        timeoutSeconds: TimeInterval
+    ) async -> PaymentSettlementOutcome {
+        await withCheckedContinuation { continuation in
+            let lock = NSLock()
+            var hasResumed = false
+
+            var settledObserver: NSObjectProtocol?
+            var failedObserver: NSObjectProtocol?
+
+            let finish: (PaymentSettlementOutcome) -> Void = { outcome in
+                lock.lock()
+                defer { lock.unlock() }
+                guard !hasResumed else { return }
+                hasResumed = true
+                if let s = settledObserver { NotificationCenter.default.removeObserver(s) }
+                if let f = failedObserver { NotificationCenter.default.removeObserver(f) }
+                continuation.resume(returning: outcome)
+            }
+
+            settledObserver = NotificationCenter.default.addObserver(
+                forName: .paymentSettled,
+                object: nil,
+                queue: .main
+            ) { note in
+                guard let pid = note.userInfo?["paymentId"] as? String, pid == paymentId else { return }
+                let hash = note.userInfo?["paymentHash"] as? String
+                finish(.settled(paymentHash: hash))
+            }
+
+            failedObserver = NotificationCenter.default.addObserver(
+                forName: .paymentFailed,
+                object: nil,
+                queue: .main
+            ) { note in
+                guard let pid = note.userInfo?["paymentId"] as? String, pid == paymentId else { return }
+                let reason = note.userInfo?["errorMessage"] as? String
+                    ?? note.userInfo?["reason"] as? String
+                    ?? "The payment did not complete. Check its status in History before trying again."
+                finish(.failed(reason: reason))
+            }
+
+            Task {
+                try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
+                finish(.timedOut)
+            }
         }
     }
 }

@@ -34,6 +34,7 @@ struct SendConfirmStepView: View {
 
                 SlideToSendButton(
                     title: String(localized: "button_slide_to_send", defaultValue: "Slide to Send"),
+                    sendingTitle: sendingStatusText,
                     isSending: model.isSending
                 ) {
                     Task { await model.executeSend(appState: appState) }
@@ -48,10 +49,18 @@ struct SendConfirmStepView: View {
     }
 
     private var isInsufficientBalance: Bool {
-        let sats = model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
-        let totalDebit = sats + estimatedFeeSats
-        let available = model.availableSpendableSats(appState: appState)
-        return totalDebit > available || available == 0
+        model.isInsufficientBalance(appState: appState)
+    }
+
+    private var sendingStatusText: String {
+        switch model.destination {
+        case .bolt12:
+            return "Requesting Invoice..."
+        case .bolt11, .lightningAddress, .lnurlPay:
+            return "Routing Payment..."
+        case .onchain, .none:
+            return "Broadcasting..."
+        }
     }
 
     private var accountAssetCard: some View {
@@ -207,19 +216,7 @@ struct SendConfirmStepView: View {
     }
 
     private var estimatedFeeSats: UInt64 {
-        let sats = model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
-        switch model.destination {
-        case .bolt11, .bolt12, .lightningAddress, .lnurlPay:
-            let base = UInt64(Constants.lightningDefaultForwardingFeeBaseMsat)
-            let prop = UInt64(Constants.lightningDefaultForwardingFeeProportionalMillionths)
-            return PaymentFeeEstimator.estimateLightningFee(sats: sats, baseMsat: base, proportionalMillionths: prop)
-        case .onchain:
-            return PaymentFeeEstimator.estimateOnchainFee(
-                feeRateSatVb: model.effectiveFeeRateSatVb,
-                isSendAll: false
-            )
-        case .none: return 0
-        }
+        model.estimatedFeeSats(appState: appState)
     }
 
     private func errorBanner(_ message: String) -> some View {

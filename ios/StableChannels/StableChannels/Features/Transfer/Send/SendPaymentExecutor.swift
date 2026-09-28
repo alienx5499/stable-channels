@@ -113,6 +113,9 @@ struct SendPaymentExecutor {
             comment: trimmedComment.isEmpty ? nil : trimmedComment
         )
         let bolt11 = try Bolt11Invoice.fromStr(invoiceStr: resp.pr)
+        if let invoiceMsat = bolt11.amountMilliSatoshis(), invoiceMsat != msat {
+            throw LNURLError.amountOutOfBounds(minSats: params.minSats, maxSats: params.maxSats)
+        }
         try appState.ensureNoUnsettledSurplus(amountMsat: msat)
         let paymentId = try appState.nodeService.sendPayment(invoice: bolt11)
         recordPayment(id: "\(paymentId)", type: "lightning", msat: msat, price: price, appState: appState)
