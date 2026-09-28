@@ -45,7 +45,7 @@ struct SendAmountStepView: View {
 
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 if model.amountUnit == .usd {
-                    Text("$")
+                    Text(verbatim: "$")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
@@ -149,7 +149,15 @@ struct SendAmountStepView: View {
                         btcPrice: appState.accountingBTCPrice
                     )
                 } label: {
-                    Text(pct == 100 ? "Max" : "\(pct)%").font(.subheadline.weight(.medium)).frame(maxWidth: .infinity)
+                    if pct == 100 {
+                        Text(String(localized: "button_max", defaultValue: "Max"))
+                            .font(.subheadline.weight(.medium))
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text(verbatim: "\(pct)%")
+                            .font(.subheadline.weight(.medium))
+                            .frame(maxWidth: .infinity)
+                    }
                 }
                 .buttonStyle(.bordered)
             }
@@ -198,6 +206,7 @@ struct SendAmountStepView: View {
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
+        .tint(Color.sendBlue)
         .disabled(model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice) == 0)
         .padding(.bottom, 16)
     }

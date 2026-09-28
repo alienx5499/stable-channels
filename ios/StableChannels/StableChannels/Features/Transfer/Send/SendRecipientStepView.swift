@@ -82,11 +82,14 @@ struct SendRecipientStepView: View {
     private var availableBalanceFooter: some View {
         if appState.btcPrice > 0 {
             let usd = Double(appState.totalBalanceSats) / Double(Constants.satsInBTC) * appState.btcPrice
-            Text("Available balance: \(usd.usdFormatted)")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 4)
+            HStack(spacing: 4) {
+                Text(String(localized: "available_balance", defaultValue: "Available: "))
+                Text(verbatim: usd.usdFormatted)
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 4)
         }
     }
 
@@ -100,6 +103,7 @@ struct SendRecipientStepView: View {
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
+        .tint(Color.sendBlue)
         .disabled(model.destination == nil || model.isFetchingLNURL)
         .padding(.bottom, 16)
     }

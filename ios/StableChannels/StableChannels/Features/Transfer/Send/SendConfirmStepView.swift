@@ -151,8 +151,8 @@ struct SendConfirmStepView: View {
                     .font(.subheadline).foregroundStyle(.secondary)
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("≈ \(feeUSD.usdFormatted) USD").font(.subheadline.weight(.medium))
-                    Text("\(feeSats.btcSpacedFormatted) BTC").font(.caption2).foregroundStyle(.secondary)
+                    Text(verbatim: "≈ \(feeUSD.usdFormatted) USD").font(.subheadline.weight(.medium))
+                    Text(verbatim: "\(feeSats.btcSpacedFormatted) BTC").font(.caption2).foregroundStyle(.secondary)
                 }
             }
             Divider()
@@ -160,8 +160,8 @@ struct SendConfirmStepView: View {
                 Text(String(localized: "label_total_spent", defaultValue: "Total Debit")).font(.headline)
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("≈ \(totalUSD.usdFormatted) USD").font(.headline)
-                    Text("\(totalSats.btcSpacedFormatted) BTC").font(.caption).foregroundStyle(.secondary)
+                    Text(verbatim: "≈ \(totalUSD.usdFormatted) USD").font(.headline)
+                    Text(verbatim: "\(totalSats.btcSpacedFormatted) BTC").font(.caption).foregroundStyle(.secondary)
                 }
             }
         }

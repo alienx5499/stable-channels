@@ -50,6 +50,7 @@ struct SendSuccessStepView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+            .tint(Color.sendBlue)
             .padding(.bottom, 16)
         }
         .padding(.horizontal, 20)

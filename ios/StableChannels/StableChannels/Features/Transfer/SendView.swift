@@ -19,7 +19,7 @@ struct SendView: View {
                             defaultValue: "Connecting to Lightning service..."
                         ),
                         curve: .roseCurve,
-                        tint: .orange
+                        tint: Color.sendBlue
                     )
                     .transition(.opacity)
                 } else if model.isSending {
@@ -30,7 +30,7 @@ struct SendView: View {
                             defaultValue: "Validating invoice and broadcasting..."
                         ),
                         curve: .roseCurve,
-                        tint: .orange
+                        tint: Color.sendBlue
                     )
                     .transition(.opacity)
                 } else {

@@ -32,7 +32,7 @@ struct SlideToSendButton: View {
 
                 // Track Progress Fill
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(Color.accentColor.opacity(0.18))
+                    .fill(Color.sendBlue.opacity(0.20))
                     .frame(width: max(0, dragOffset + handleSize + 3), height: trackHeight)
 
                 // Center Label
