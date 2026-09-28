@@ -50,7 +50,7 @@ final class SendFlowModel {
         }
     }
 
-    func proceedFromRecipient(appState _: AppState) async {
+    func proceedFromRecipient(appState: AppState) async {
         guard let dest = destination else { return }
         errorMessage = nil
 
@@ -66,9 +66,39 @@ final class SendFlowModel {
                 errorMessage = WalletErrorMessages.operation(error, fallback: error.localizedDescription)
             }
         case .bolt11(_, _, let msat):
-            self.step = (msat != nil && msat! > 0) ? .confirm : .amount
+            if let msat, msat > 0 {
+                let requiredSats = msat / 1000
+                let available = availableSpendableSats(appState: appState)
+                if requiredSats > available || available == 0 {
+                    errorMessage = "Insufficient balance for this invoice. Available: \(available.btcSpacedFormatted) BTC"
+                    return
+                }
+                self.step = .confirm
+            } else {
+                self.step = .amount
+            }
         case .bolt12, .onchain:
             self.step = .amount
+        }
+    }
+
+    func availableSpendableSats(appState: AppState) -> UInt64 {
+        guard let dest = destination else { return appState.totalBalanceSats }
+        switch dest {
+        case .bolt11, .bolt12, .lightningAddress, .lnurlPay:
+            let readyChannels = appState.nodeService.channels.filter(\.isChannelReady)
+            if !readyChannels.isEmpty {
+                let channelOutbound = readyChannels.map(\.outboundCapacityMsat).reduce(0, +) / 1000
+                return min(channelOutbound, appState.lightningBalanceSats)
+            } else {
+                return appState.lightningBalanceSats
+            }
+        case .onchain:
+            if appState.hasReadyChannel && !appState.isSweeping {
+                return appState.totalBalanceSats
+            } else {
+                return appState.spendableOnchainSats
+            }
         }
     }
 
@@ -78,6 +108,23 @@ final class SendFlowModel {
         let sats = computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
         guard sats > 0 else {
             errorMessage = "Please enter an amount greater than 0."
+            return
+        }
+
+        let available = availableSpendableSats(appState: appState)
+        guard available > 0 else {
+            errorMessage = "Insufficient balance. Your available balance is 0 sats."
+            return
+        }
+
+        guard sats <= available else {
+            let price = appState.accountingBTCPrice
+            let availableUSD = price > 0 ? (Double(available) / Double(Constants.satsInBTC)) * price : 0
+            if amountUnit == .usd && price > 0 {
+                errorMessage = "Insufficient balance. Available: $\(String(format: "%.2f", availableUSD)) (\(available.btcSpacedFormatted) BTC)"
+            } else {
+                errorMessage = "Insufficient balance. Available: \(available.btcSpacedFormatted) BTC"
+            }
             return
         }
 
@@ -179,6 +226,15 @@ final class SendFlowModel {
 
         appState.ensureLSPConnected()
         let sats = computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
+        guard sats > 0 else {
+            errorMessage = "Invalid amount."
+            return
+        }
+        let available = availableSpendableSats(appState: appState)
+        guard sats <= available, available > 0 else {
+            errorMessage = "Insufficient balance. Available: \(available.btcSpacedFormatted) BTC"
+            return
+        }
 
         do {
             let result = try await SendPaymentExecutor.execute(

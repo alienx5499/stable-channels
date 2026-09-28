@@ -763,8 +763,8 @@
 				49E3081030080F3C009B0014 /* TxidResolutionService.swift */,
 				49A3297A300CC81D003EC383 /* WalletErrorMessages.swift */,
 				498244AC3022718B0086BDB6 /* Biometric */,
-				D20000000000000000000002 /* LNURL */,
 				495CB4023017AD1800560837 /* Confirmation */,
+				D20000000000000000000002 /* LNURL */,
 				4944457E3053E42800B5A146 /* Price */,
 				49DDB0002FF0000000000001 /* Repositories */,
 				495CB4013017917400560837 /* WebSocket */,
@@ -852,13 +852,13 @@
 			isa = PBXGroup;
 			children = (
 				D20000000000000000000026 /* AddressVisualChunkView.swift */,
+				D2000000000000000000004A /* NetworkFeeSelectorView.swift */,
 				D20000000000000000000030 /* SendAmountStepView.swift */,
 				D20000000000000000000032 /* SendConfirmStepView.swift */,
 				D20000000000000000000044 /* SendDestinationBadgeView.swift */,
 				D20000000000000000000022 /* SendFlowModel.swift */,
 				D20000000000000000000020 /* SendFlowStep.swift */,
 				D20000000000000000000048 /* SendLoadingView.swift */,
-				D2000000000000000000004A /* NetworkFeeSelectorView.swift */,
 				D20000000000000000000046 /* SendPaymentExecutor.swift */,
 				D20000000000000000000028 /* SendRecipientStepView.swift */,
 				D20000000000000000000034 /* SendSuccessStepView.swift */,
@@ -910,6 +910,8 @@
 		F11CF0F21D3319E86AF791B6 /* StableChannelsTests */ = {
 			isa = PBXGroup;
 			children = (
+				D20000000000000000000038 /* AddressVisualChunkerTests.swift */,
+				D20000000000000000000036 /* Bech32Tests.swift */,
 				4944458130540C3500B5A146 /* BinarySearchTests.swift */,
 				49DDD00D3054000100B5A146 /* ChannelAllocationTests.swift */,
 				49D4DB072FD02F4E0074ACD2 /* CloseTxidResolverTests.swift */,
@@ -917,10 +919,13 @@
 				4944458230540C3500B5A146 /* ExtensionsFormattingTests.swift */,
 				49DAFB3B2FDB6587003BE0EB /* FeeRateServiceTests.swift */,
 				4944458330540C3500B5A146 /* InputSanitizerTests.swift */,
+				D20000000000000000000042 /* LNURLServiceTests.swift */,
 				49FEF36C30124CEE0089850F /* MempoolWebSocketServiceTests.swift */,
 				D1A60F120000000000000010 /* NodeStartupFailoverTests.swift */,
 				70CCF0012F9D46C70004CB73 /* OnChainConfirmationPolicyTests.swift */,
 				499DBE732FD2DADF003E89F9 /* OnchainTxidResolverTests.swift */,
+				D20000000000000000000040 /* PaymentDestinationClassifierTests.swift */,
+				D2000000000000000000004C /* PaymentFeeEstimatorTests.swift */,
 				499B40AB2F9D46C70004CB73 /* PendingPushPaymentTests.swift */,
 				4944457F3053DB5000B5A146 /* PriceChartAlgorithmsTests.swift */,
 				490224CB302F90A500DF84AA /* PriceServiceTests.swift */,
@@ -934,11 +939,6 @@
 				499DBE752FD2DADF003E89F9 /* StaggeredTaskLauncherTests.swift */,
 				490A1338304F147D005CDA39 /* TradeSyncParityTests.swift */,
 				49A3297C300CC81D003EC383 /* WalletErrorMessagesTests.swift */,
-				D20000000000000000000036 /* Bech32Tests.swift */,
-				D20000000000000000000038 /* AddressVisualChunkerTests.swift */,
-				D20000000000000000000040 /* PaymentDestinationClassifierTests.swift */,
-				D20000000000000000000042 /* LNURLServiceTests.swift */,
-				D2000000000000000000004C /* PaymentFeeEstimatorTests.swift */,
 			);
 			path = StableChannelsTests;
 			sourceTree = "<group>";

@@ -13,6 +13,7 @@ struct SendAmountStepView: View {
                     payeeMetadataCard(description: payeeInfo)
                 }
                 heroAmountCard
+                availableBalanceCard
                 presetPercentages
                 if let params = model.lnurlParams, let maxComment = params.commentAllowed, maxComment > 0 {
                     commentCard(maxCharacters: maxComment)
@@ -31,6 +32,24 @@ struct SendAmountStepView: View {
         .onChange(of: isAmountFocused) { _, isFocused in
             if !isFocused { model.normalizeAmountInput() }
         }
+    }
+
+    private var availableBalanceCard: some View {
+        let available = model.availableSpendableSats(appState: appState)
+        let sats = model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
+        let isInsufficient = sats > available || available == 0
+        let usd = (Double(available) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
+
+        return HStack {
+            Text(String(localized: "label_available_balance", defaultValue: "Available:"))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Text(verbatim: "\(usd.usdFormatted) (\(available.btcSpacedFormatted) BTC)")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(isInsufficient && sats > 0 ? Color.red : Color.secondary)
+            Spacer()
+        }
+        .padding(.horizontal, 4)
     }
 
     private var heroAmountCard: some View {
@@ -140,12 +159,13 @@ struct SendAmountStepView: View {
     }
 
     private var presetPercentages: some View {
-        HStack(spacing: 12) {
+        let available = model.availableSpendableSats(appState: appState)
+        return HStack(spacing: 12) {
             ForEach([25, 50, 100], id: \.self) { pct in
                 Button {
                     model.applyPercentage(
                         pct,
-                        totalBalanceSats: appState.totalBalanceSats,
+                        totalBalanceSats: available,
                         btcPrice: appState.accountingBTCPrice
                     )
                 } label: {
@@ -160,6 +180,7 @@ struct SendAmountStepView: View {
                     }
                 }
                 .buttonStyle(.bordered)
+                .disabled(available == 0)
             }
         }
     }
@@ -198,7 +219,11 @@ struct SendAmountStepView: View {
     }
 
     private var continueButton: some View {
-        Button {
+        let sats = model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
+        let available = model.availableSpendableSats(appState: appState)
+        let isBlocked = sats == 0 || sats > available || available == 0
+
+        return Button {
             model.proceedFromAmount(appState: appState)
         } label: {
             Text(String(localized: "button_continue", defaultValue: "Continue"))
@@ -207,7 +232,7 @@ struct SendAmountStepView: View {
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
         .tint(Color.sendBlue)
-        .disabled(model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice) == 0)
+        .disabled(isBlocked)
         .padding(.bottom, 16)
     }
 }

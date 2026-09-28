@@ -299,6 +299,7 @@ final class SendFlowModelTests: XCTestCase {
     func testProceedFromAmountWithLNURLBounds() throws {
         let model = SendFlowModel()
         let appState = AppState()
+        appState.lightningBalanceSats = 100_000
         model.destination = .lnurlPay(url: try XCTUnwrap(URL(string: "https://ln.tips/user")))
         model.lnurlParams = LNURLPayParams(
             tag: "payRequest",
@@ -327,6 +328,64 @@ final class SendFlowModelTests: XCTestCase {
         // Exact minimum
         model.amountInputText = "1000"
         model.proceedFromAmount(appState: appState)
+        XCTAssertEqual(model.step, .confirm)
+        XCTAssertNil(model.errorMessage)
+    }
+
+    func testProceedFromAmount_blocksWhenBalanceIsZero() throws {
+        let model = SendFlowModel()
+        let appState = AppState()
+        appState.lightningBalanceSats = 0
+        model.destination = .lightningAddress(
+            handle: "alice",
+            domain: "tips.net",
+            url: try XCTUnwrap(URL(string: "https://tips.net"))
+        )
+        model.step = .amount
+        model.amountUnit = .usd
+        model.amountInputText = "15.00"
+
+        model.proceedFromAmount(appState: appState)
+
+        XCTAssertEqual(model.step, .amount)
+        XCTAssertEqual(model.errorMessage, "Insufficient balance. Your available balance is 0 sats.")
+    }
+
+    func testProceedFromAmount_blocksWhenAmountExceedsAvailableBalance() throws {
+        let model = SendFlowModel()
+        let appState = AppState()
+        appState.lightningBalanceSats = 5_000
+        model.destination = .lightningAddress(
+            handle: "alice",
+            domain: "tips.net",
+            url: try XCTUnwrap(URL(string: "https://tips.net"))
+        )
+        model.step = .amount
+        model.amountUnit = .sats
+        model.amountInputText = "10000"
+
+        model.proceedFromAmount(appState: appState)
+
+        XCTAssertEqual(model.step, .amount)
+        XCTAssertNotNil(model.errorMessage)
+        XCTAssertTrue(model.errorMessage?.contains("Insufficient balance") == true)
+    }
+
+    func testProceedFromAmount_allowsWhenAmountWithinBalance() throws {
+        let model = SendFlowModel()
+        let appState = AppState()
+        appState.lightningBalanceSats = 50_000
+        model.destination = .lightningAddress(
+            handle: "alice",
+            domain: "tips.net",
+            url: try XCTUnwrap(URL(string: "https://tips.net"))
+        )
+        model.step = .amount
+        model.amountUnit = .sats
+        model.amountInputText = "10000"
+
+        model.proceedFromAmount(appState: appState)
+
         XCTAssertEqual(model.step, .confirm)
         XCTAssertNil(model.errorMessage)
     }

@@ -20,7 +20,7 @@ struct SendSuccessStepView: View {
             }
 
             VStack(spacing: 6) {
-                Text(String(localized: "title_payment_sent", defaultValue: "Payment Sent"))
+                Text(verbatim: successTitle)
                     .font(.title2.weight(.bold))
 
                 let sats = model.sentAmountSats
@@ -32,6 +32,18 @@ struct SendSuccessStepView: View {
                 Text("\(sats.btcSpacedFormatted) BTC")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+
+                if isBolt12 {
+                    Text(String(
+                        localized: "note_bolt12_asynchronous",
+                        defaultValue: "Offer payment dispatched. Your node is requesting an invoice over Lightning onion messaging."
+                    ))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 4)
+                    .padding(.horizontal, 16)
+                }
             }
 
             if let txid = model.successTxid {
@@ -105,5 +117,15 @@ struct SendSuccessStepView: View {
         }
         .padding(14)
         .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var isBolt12: Bool {
+        if case .bolt12 = model.destination { return true }
+        return false
+    }
+
+    private var successTitle: String {
+        isBolt12 ? String(localized: "title_payment_initiated", defaultValue: "Payment Initiated") :
+            String(localized: "title_payment_sent", defaultValue: "Payment Sent")
     }
 }

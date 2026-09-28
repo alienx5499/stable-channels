@@ -24,7 +24,9 @@ struct SendConfirmStepView: View {
 
                 feeAndTotalCard
 
-                if let error = model.errorMessage {
+                if isInsufficientBalance {
+                    errorBanner("Insufficient balance. Total debit exceeds available funds.")
+                } else if let error = model.errorMessage {
                     errorBanner(error)
                 }
 
@@ -36,11 +38,20 @@ struct SendConfirmStepView: View {
                 ) {
                     Task { await model.executeSend(appState: appState) }
                 }
+                .disabled(isInsufficientBalance)
+                .opacity(isInsufficientBalance ? 0.5 : 1.0)
                 .padding(.bottom, 16)
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
         }
+    }
+
+    private var isInsufficientBalance: Bool {
+        let sats = model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
+        let totalDebit = sats + estimatedFeeSats
+        let available = model.availableSpendableSats(appState: appState)
+        return totalDebit > available || available == 0
     }
 
     private var accountAssetCard: some View {
