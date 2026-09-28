@@ -61,7 +61,11 @@ struct SendConfirmStepView: View {
 
     private var sourceRouteDescription: String {
         switch model.destination {
-        case .bolt11, .bolt12, .lightningAddress, .lnurlPay:
+        case .bolt11:
+            return "Lightning (BOLT11) • Instant"
+        case .bolt12:
+            return "Lightning (BOLT12) • Instant"
+        case .lightningAddress, .lnurlPay:
             return "Lightning • Instant"
         case .onchain:
             let isReady = appState.nodeService.channels.contains(where: \.isChannelReady)
@@ -73,7 +77,8 @@ struct SendConfirmStepView: View {
 
     private var addressHeaderTitle: String {
         switch model.destination {
-        case .bolt11, .bolt12: return String(localized: "header_invoice", defaultValue: "Lightning Invoice")
+        case .bolt11: return String(localized: "header_invoice", defaultValue: "Lightning (BOLT11) Invoice")
+        case .bolt12: return String(localized: "header_offer", defaultValue: "Lightning (BOLT12) Offer")
         case .lightningAddress, .lnurlPay: return String(localized: "header_recipient", defaultValue: "Recipient")
         case .onchain, .none: return String(localized: "header_address", defaultValue: "Recipient Address")
         }

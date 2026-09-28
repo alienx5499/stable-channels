@@ -12,9 +12,9 @@ enum SendDestination: Equatable, Sendable {
     var displayTitle: String {
         switch self {
         case .bolt11:
-            return "Lightning Invoice"
+            return "Lightning (BOLT11) Invoice"
         case .bolt12:
-            return "Lightning Offer"
+            return "Lightning (BOLT12) Offer"
         case .onchain:
             return "Bitcoin Address"
         case .lightningAddress(let handle, let domain, _):
