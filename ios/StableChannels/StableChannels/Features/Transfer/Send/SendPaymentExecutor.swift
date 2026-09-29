@@ -222,4 +222,60 @@ struct SendPaymentExecutor {
             address: address
         )
     }
+
+    enum SettlementOutcome: Sendable {
+        case settled(paymentHash: String?)
+        case failed(reason: String)
+        case timedOut
+    }
+
+    static func awaitPaymentSettlement(
+        paymentId: String,
+        timeoutSeconds: TimeInterval
+    ) async -> SettlementOutcome {
+        await withCheckedContinuation { continuation in
+            let lock = NSLock()
+            var hasResumed = false
+
+            var settledObserver: NSObjectProtocol?
+            var failedObserver: NSObjectProtocol?
+
+            let finish: (SettlementOutcome) -> Void = { outcome in
+                lock.lock()
+                defer { lock.unlock() }
+                guard !hasResumed else { return }
+                hasResumed = true
+                if let s = settledObserver { NotificationCenter.default.removeObserver(s) }
+                if let f = failedObserver { NotificationCenter.default.removeObserver(f) }
+                continuation.resume(returning: outcome)
+            }
+
+            settledObserver = NotificationCenter.default.addObserver(
+                forName: .paymentSettled,
+                object: nil,
+                queue: .main
+            ) { note in
+                guard let pid = note.userInfo?["paymentId"] as? String, pid == paymentId else { return }
+                let hash = note.userInfo?["paymentHash"] as? String
+                finish(.settled(paymentHash: hash))
+            }
+
+            failedObserver = NotificationCenter.default.addObserver(
+                forName: .paymentFailed,
+                object: nil,
+                queue: .main
+            ) { note in
+                guard let pid = note.userInfo?["paymentId"] as? String, pid == paymentId else { return }
+                let reason = note.userInfo?["errorMessage"] as? String
+                    ?? note.userInfo?["reason"] as? String
+                    ?? "The payment did not complete. Check its status in History before trying again."
+                finish(.failed(reason: reason))
+            }
+
+            Task {
+                try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
+                finish(.timedOut)
+            }
+        }
+    }
 }

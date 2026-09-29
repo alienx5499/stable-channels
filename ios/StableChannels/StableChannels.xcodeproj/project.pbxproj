@@ -206,6 +206,9 @@
 		D20000000000000000000049 /* SendLoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000048 /* SendLoadingView.swift */; };
 		D2000000000000000000004B /* NetworkFeeSelectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2000000000000000000004A /* NetworkFeeSelectorView.swift */; };
 		D2000000000000000000004D /* PaymentFeeEstimatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2000000000000000000004C /* PaymentFeeEstimatorTests.swift */; };
+		D2000000000000000000004F /* SendAmountCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2000000000000000000004E /* SendAmountCalculator.swift */; };
+		D20000000000000000000051 /* OnChainReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000050 /* OnChainReviewSheet.swift */; };
+		D20000000000000000000053 /* OnChainAmountCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000052 /* OnChainAmountCard.swift */; };
 		DC5FA35343D89CB75FD4E402 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D62A82EA774DC10F10A6574A /* ContentView.swift */; };
 		E7E816D3AF095B47E1F58407 /* HistoricalPrices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B46630309755AE15EF291D4 /* HistoricalPrices.swift */; };
 		E8C9430FF8920728747EF550 /* SendView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E0FAABBD08BCBF20220C850 /* SendView.swift */; };
@@ -438,6 +441,9 @@
 		D20000000000000000000048 /* SendLoadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendLoadingView.swift; sourceTree = "<group>"; };
 		D2000000000000000000004A /* NetworkFeeSelectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkFeeSelectorView.swift; sourceTree = "<group>"; };
 		D2000000000000000000004C /* PaymentFeeEstimatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentFeeEstimatorTests.swift; sourceTree = "<group>"; };
+		D2000000000000000000004E /* SendAmountCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendAmountCalculator.swift; sourceTree = "<group>"; };
+		D20000000000000000000050 /* OnChainReviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnChainReviewSheet.swift; sourceTree = "<group>"; };
+		D20000000000000000000052 /* OnChainAmountCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnChainAmountCard.swift; sourceTree = "<group>"; };
 		D34C08DCF6ACD28A3898859D /* StableChannelsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StableChannelsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D62A82EA774DC10F10A6574A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D9FF3A7A30FD6A84388868F3 /* OnChainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnChainView.swift; sourceTree = "<group>"; };
@@ -486,14 +492,14 @@
 		2788439C4BA338889A92627F /* Domain */ = {
 			isa = PBXGroup;
 			children = (
-				D20000000000000000000001 /* Send */,
 				ABD66CEF54B4AD55A14B6FE1 /* BackupModels.swift */,
+				49DDD0013054000100B5A146 /* ChannelAllocation.swift */,
 				379669F5815ECD9926C3A5D2 /* LSPConfig.swift */,
 				499F1E563009F03E00936944 /* PaymentProgress.swift */,
+				49DDD0033054000100B5A146 /* PriceHistoryProviding.swift */,
 				6DDD82B198645873A6F492F2 /* StableChannel.swift */,
 				45B3E864653E657FB0FCA3D2 /* Trade.swift */,
-				49DDD0013054000100B5A146 /* ChannelAllocation.swift */,
-				49DDD0033054000100B5A146 /* PriceHistoryProviding.swift */,
+				D20000000000000000000001 /* Send */,
 			);
 			path = Domain;
 			sourceTree = "<group>";
@@ -691,8 +697,8 @@
 			children = (
 				4904A08B3055544100582069 /* BalanceScaleKinematics.swift */,
 				49BB390B0000000000000001 /* CurveProgressIndicator.swift */,
-				49BB390B0000000000000003 /* LemniscateBloomIcon.swift */,
 				49E4567F2FCC596F00B0CA85 /* FullscreenQRZoomView.swift */,
+				49BB390B0000000000000003 /* LemniscateBloomIcon.swift */,
 				496A44412FCD4F75005AF12F /* QRCodeExtractor.swift */,
 				49E456802FCC596F00B0CA85 /* QRCodeUtility.swift */,
 				496A44422FCD4F75005AF12F /* QRInputToolbar.swift */,
@@ -836,9 +842,10 @@
 		D20000000000000000000001 /* Send */ = {
 			isa = PBXGroup;
 			children = (
-				D20000000000000000000012 /* SendDestination.swift */,
 				D20000000000000000000014 /* AddressVisualChunker.swift */,
 				D20000000000000000000016 /* PaymentFeeEstimator.swift */,
+				D2000000000000000000004E /* SendAmountCalculator.swift */,
+				D20000000000000000000012 /* SendDestination.swift */,
 			);
 			path = Send;
 			sourceTree = "<group>";
@@ -870,13 +877,23 @@
 			path = Send;
 			sourceTree = "<group>";
 		};
+		D20000000000000000000004 /* OnChain */ = {
+			isa = PBXGroup;
+			children = (
+				D20000000000000000000052 /* OnChainAmountCard.swift */,
+				D20000000000000000000050 /* OnChainReviewSheet.swift */,
+				D9FF3A7A30FD6A84388868F3 /* OnChainView.swift */,
+			);
+			path = OnChain;
+			sourceTree = "<group>";
+		};
 		DD0CC2D41227228C216D4BE8 /* Transfer */ = {
 			isa = PBXGroup;
 			children = (
 				4923802C2FB51864007D9419 /* InvoiceScanView.swift */,
-				D9FF3A7A30FD6A84388868F3 /* OnChainView.swift */,
 				445B52C4DEC5CE8D3B0B3DA9 /* ReceiveView.swift */,
 				7E0FAABBD08BCBF20220C850 /* SendView.swift */,
+				D20000000000000000000004 /* OnChain */,
 				D20000000000000000000003 /* Send */,
 			);
 			path = Transfer;
@@ -1132,6 +1149,9 @@
 				D20000000000000000000047 /* SendPaymentExecutor.swift in Sources */,
 				D20000000000000000000049 /* SendLoadingView.swift in Sources */,
 				D2000000000000000000004B /* NetworkFeeSelectorView.swift in Sources */,
+				D2000000000000000000004F /* SendAmountCalculator.swift in Sources */,
+				D20000000000000000000051 /* OnChainReviewSheet.swift in Sources */,
+				D20000000000000000000053 /* OnChainAmountCard.swift in Sources */,
 				499E5371301A92900050E3F8 /* SettingsIconBadgeView.swift in Sources */,
 				499E5372301A92900050E3F8 /* SettingsBannerView.swift in Sources */,
 				6949A1E4AC3016EB41A5832A /* AuditService.swift in Sources */,
