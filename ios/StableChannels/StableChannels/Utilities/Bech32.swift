@@ -59,7 +59,12 @@ enum Bech32 {
         if (b & 0x10) != 0 { chk ^= 0x2A1462B3 }
     }
 
-    private static func verifyChecksum(hrp: Substring.UTF8View, data: [UInt8]) -> Bool {
+    enum ChecksumType {
+        case bech32
+        case bech32m
+    }
+
+    private static func determineChecksumType(hrp: Substring.UTF8View, data: [UInt8]) -> ChecksumType? {
         var chk: UInt32 = 1
         for byte in hrp {
             polymodStep(&chk, value: byte >> 5)
@@ -71,12 +76,19 @@ enum Bech32 {
         for val in data {
             polymodStep(&chk, value: val)
         }
-        return chk == bech32ChecksumConst || chk == bech32mChecksumConst
+        if chk == bech32ChecksumConst { return .bech32 }
+        if chk == bech32mChecksumConst { return .bech32m }
+        return nil
+    }
+
+    private static func verifyChecksum(hrp: Substring.UTF8View, data: [UInt8]) -> Bool {
+        return determineChecksumType(hrp: hrp, data: data) != nil
     }
 
     /// Verifies if a string is a valid Bech32 or Bech32m checksummed string and returns its lowercased HRP.
-    static func verifyChecksum(bechString: String) -> String? {
+    static func verifyChecksum(bechString: String, limitLength: Bool = true) -> String? {
         let trimmed = bechString.trimmingCharacters(in: .whitespacesAndNewlines)
+        if limitLength && trimmed.count > 90 { return nil }
         guard trimmed.count >= 8 else { return nil }
 
         var hasLower = false
@@ -107,6 +119,61 @@ enum Bech32 {
 
         guard verifyChecksum(hrp: hrp.utf8, data: values) else { return nil }
         return String(hrp)
+    }
+
+    /// Verifies that a native Segwit / Taproot address adheres to BIP-173 (v0 with Bech32)
+    /// or BIP-350 (v1+ with Bech32m) specifications, including length limits and program sizes.
+    static func verifySegwitAddress(_ address: String, expectedHrp: String) -> Bool {
+        let trimmed = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 14 && trimmed.count <= 90 else { return false }
+
+        var hasLower = false
+        var hasUpper = false
+        for byte in trimmed.utf8 {
+            if byte >= 0x61 && byte <= 0x7A { hasLower = true }
+            if byte >= 0x41 && byte <= 0x5A { hasUpper = true }
+            if hasLower && hasUpper { return false }
+        }
+
+        let lowercased = trimmed.lowercased()
+        guard let pos = lowercased.lastIndex(of: "1") else { return false }
+        let hrp = lowercased[..<pos]
+        guard hrp == expectedHrp.lowercased() else { return false }
+
+        let dataPart = lowercased[lowercased.index(after: pos)...]
+        guard dataPart.count >= 7 else { return false }
+
+        var values = [UInt8]()
+        values.reserveCapacity(dataPart.count)
+        for char in dataPart {
+            guard let asciiVal = char.asciiValue, asciiVal < 128 else { return false }
+            let val = asciiLookupTable[Int(asciiVal)]
+            guard val >= 0 else { return false }
+            values.append(UInt8(val))
+        }
+
+        guard let checksumType = determineChecksumType(hrp: hrp.utf8, data: values) else {
+            return false
+        }
+
+        let payload5Bit = Array(values.dropLast(6))
+        guard !payload5Bit.isEmpty else { return false }
+        let witnessVersion = payload5Bit[0]
+        guard witnessVersion <= 16 else { return false }
+
+        guard let program = convertBits(data: Array(payload5Bit.dropFirst()), fromBits: 5, toBits: 8, pad: false) else {
+            return false
+        }
+
+        if witnessVersion == 0 {
+            // BIP-173: Witness version 0 MUST use Bech32 checksum and length 20 (P2WPKH) or 32 (P2WSH)
+            guard checksumType == .bech32 else { return false }
+            return program.count == 20 || program.count == 32
+        } else {
+            // BIP-350: Witness version 1+ MUST use Bech32m checksum and length between 2 and 40
+            guard checksumType == .bech32m else { return false }
+            return program.count >= 2 && program.count <= 40
+        }
     }
 
     // MARK: - 5-bit to 8-bit bit conversion
@@ -146,8 +213,11 @@ enum Bech32 {
     // MARK: - Decode
 
     /// Decodes a Bech32 string into its HRP and 8-bit data payload.
-    static func decode(_ bechString: String) throws -> (hrp: String, data: Data) {
+    static func decode(_ bechString: String, limitLength: Bool = true) throws -> (hrp: String, data: Data) {
         let trimmed = bechString.trimmingCharacters(in: .whitespacesAndNewlines)
+        if limitLength && trimmed.count > 90 {
+            throw Error.invalidLength
+        }
         guard trimmed.count >= 8 else {
             throw Error.invalidLength
         }
@@ -211,7 +281,7 @@ enum Bech32 {
             clean = String(clean.dropFirst("lightning:".count))
         }
 
-        let (hrp, data) = try decode(clean)
+        let (hrp, data) = try decode(clean, limitLength: false)
         guard hrp.lowercased() == "lnurl" else {
             throw Error.missingHrp
         }

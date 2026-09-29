@@ -80,7 +80,6 @@ struct OnChainSendView: View {
             .sheet(isPresented: $showReview) {
                 OnChainReviewSheet(
                     address: address,
-                    amountUSDStr: amountUSDStr,
                     sendAll: sendAll,
                     amountSats: amountSats,
                     feeRateSatVb: feeRateSatVb,

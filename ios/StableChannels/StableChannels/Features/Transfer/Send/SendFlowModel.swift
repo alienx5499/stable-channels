@@ -26,15 +26,18 @@ final class SendFlowModel {
     var sentAmountSats: UInt64 = 0
     var isPendingSettlement: Bool = false
     var feeRateSatVb: UInt64?
+    var recommendedFees: RecommendedFees?
     var selectedFeeTier: NetworkFeeSpeedTier = .standard
+    var resetToken: Int = 0
 
-    /// Returns the effective fee rate, or nil when the rate has not loaded
-    /// and the selected tier is `.standard` (lets LDK pick its own estimate).
+    /// Returns the effective fee rate using live recommended fees when available,
+    /// or nil when the rate has not loaded and standard tier is selected.
     var effectiveFeeRateSatVb: UInt64? {
+        if let rec = recommendedFees {
+            return selectedFeeTier.effectiveRate(baseRate: rec.halfHourFee, recommendedFees: rec)
+        }
         guard let base = feeRateSatVb else {
-            // Standard tier: nil signals LDK to use its internal estimate.
-            // Non-standard tiers require a known base rate.
-            return selectedFeeTier == .standard ? nil : nil
+            return nil
         }
         return selectedFeeTier.effectiveRate(baseRate: base)
     }
@@ -42,7 +45,7 @@ final class SendFlowModel {
     /// True when the fee rate has loaded or the selected tier does not need one.
     var isFeeRateReady: Bool {
         if case .onchain = destination {
-            return feeRateSatVb != nil || selectedFeeTier == .standard
+            return recommendedFees != nil || feeRateSatVb != nil || selectedFeeTier == .standard
         }
         return true
     }
@@ -55,7 +58,6 @@ final class SendFlowModel {
 
     func onInputChanged() {
         errorMessage = nil
-        let previousDestination = destination
         classification = PaymentDestinationClassifier.classify(inputText)
         switch classification {
         case .valid(let target):
@@ -142,7 +144,11 @@ final class SendFlowModel {
                 ?? UInt64(Constants.lightningDefaultForwardingFeeProportionalMillionths)
             return PaymentFeeEstimator.estimateLightningFee(sats: sats, baseMsat: base, proportionalMillionths: prop)
         case .onchain:
-            let rate = effectiveFeeRateSatVb ?? 10
+            let isSpliceOut = appState.nodeService.channels.contains { $0.isChannelReady } && !appState.isSweeping
+            if isSpliceOut {
+                return 0
+            }
+            let rate = effectiveFeeRateSatVb ?? (feeRateSatVb ?? 10)
             return PaymentFeeEstimator.estimateOnchainFee(
                 feeRateSatVb: rate,
                 isSendAll: false
@@ -150,6 +156,16 @@ final class SendFlowModel {
         case .none:
             return 0
         }
+    }
+
+    func calculateMaxSendableSats(appState: AppState) -> UInt64 {
+        let available = availableSpendableSats(appState: appState)
+        var candidate = available
+        for _ in 0..<2 {
+            let fee = estimatedFeeSatsForAmount(sats: candidate, appState: appState)
+            candidate = available > fee ? (available - fee) : 0
+        }
+        return candidate
     }
 
     func isInsufficientBalance(appState: AppState) -> Bool {
@@ -218,15 +234,8 @@ final class SendFlowModel {
 
     func applyPercentage(_ percent: Int, totalBalanceSats: UInt64, btcPrice: Double, appState: AppState? = nil) {
         if percent == 100, let appState {
-            // Solve for max sats such that sats + fee(sats) <= available.
-            // Two iterations converge because the fee is monotonic.
-            let available = availableSpendableSats(appState: appState)
-            var candidate = available
-            for _ in 0..<2 {
-                let fee = estimatedFeeSatsForAmount(sats: candidate, appState: appState)
-                candidate = available > fee ? (available - fee) : 0
-            }
-            amountInputText = SendAmountCalculator.formatSatsForUnit(candidate, unit: amountUnit, btcPrice: btcPrice)
+            let targetSats = calculateMaxSendableSats(appState: appState)
+            amountInputText = SendAmountCalculator.formatSatsForUnit(targetSats, unit: amountUnit, btcPrice: btcPrice)
         } else {
             amountInputText = SendAmountCalculator.calculatePercentageAmount(
                 percent: percent,
@@ -245,6 +254,7 @@ final class SendFlowModel {
         // For onchain sends, block if fee rate has not loaded (non-standard tier)
         if case .onchain = dest, !isFeeRateReady {
             errorMessage = "Waiting for network fee rate. Please wait a moment."
+            resetToken += 1
             return
         }
 
@@ -254,23 +264,29 @@ final class SendFlowModel {
             let passed = await appState.authenticate(reason: authReason)
             guard passed else {
                 errorMessage = appState.authError ?? "Authentication required to send."
+                resetToken += 1
                 return
             }
         }
 
         isSending = true
-        defer { isSending = false }
+        defer {
+            isSending = false
+            resetToken += 1
+        }
 
         appState.ensureLSPConnected()
         let sats = computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
         guard sats > 0 else {
             errorMessage = "Invalid amount."
+            resetToken += 1
             return
         }
         let available = availableSpendableSats(appState: appState)
         let totalDebit = sats + estimatedFeeSats(appState: appState)
         guard totalDebit <= available, available > 0 else {
             errorMessage = "Amount exceeds your balance. Available: \(available.btcSpacedFormatted) BTC"
+            resetToken += 1
             return
         }
 

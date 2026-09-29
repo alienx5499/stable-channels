@@ -36,7 +36,9 @@ struct SendConfirmStepView: View {
                     }
 
                     SendConfirmFeeTotalCard(
+                        feeLabel: feeCardLabel,
                         estimatedFeeSats: model.estimatedFeeSats(appState: appState),
+                        rateSatVb: isLightning || isSpliceOut ? nil : model.effectiveFeeRateSatVb,
                         totalDebitSats: sats + model.estimatedFeeSats(appState: appState),
                         btcPrice: appState.accountingBTCPrice
                     )
@@ -59,8 +61,8 @@ struct SendConfirmStepView: View {
             VStack(spacing: 4) {
                 SlideToSendButton(
                     title: String(localized: "button_slide_to_send", defaultValue: "Slide to Send"),
-                    sendingTitle: sendingStatusText,
-                    isSending: model.isSending
+                    isSending: model.isSending,
+                    resetToken: model.resetToken
                 ) {
                     Task { await model.executeSend(appState: appState) }
                 }
@@ -79,6 +81,28 @@ struct SendConfirmStepView: View {
                 for: nil
             )
         }
+        .task {
+            let rec = await appState.feeRateService.recommendedFees()
+            model.recommendedFees = rec
+            model.feeRateSatVb = rec.halfHourFee
+        }
+    }
+
+    private var isLightning: Bool {
+        guard let dest = model.destination else { return false }
+        switch dest {
+        case .bolt11, .bolt12, .lightningAddress, .lnurlPay: return true
+        case .onchain: return false
+        }
+    }
+
+    private var feeCardLabel: String {
+        if isSpliceOut {
+            return String(localized: "label_routing_fee", defaultValue: "Routing Fee")
+        }
+        return isLightning
+            ? String(localized: "label_routing_fee", defaultValue: "Routing Fee")
+            : String(localized: "label_total_fees", defaultValue: "Network Fee")
     }
 
     private var isSpliceOut: Bool {
@@ -87,17 +111,6 @@ struct SendConfirmStepView: View {
 
     private var isInsufficientBalance: Bool {
         model.isInsufficientBalance(appState: appState)
-    }
-
-    private var sendingStatusText: String {
-        switch model.destination {
-        case .bolt12:
-            return String(localized: "status_requesting_invoice", defaultValue: "Requesting Invoice...")
-        case .bolt11, .lightningAddress, .lnurlPay:
-            return String(localized: "status_routing_payment", defaultValue: "Routing Payment...")
-        case .onchain, .none:
-            return String(localized: "status_broadcasting", defaultValue: "Broadcasting...")
-        }
     }
 
     private var sourceRouteDescription: String {

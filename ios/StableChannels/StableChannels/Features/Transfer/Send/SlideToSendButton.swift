@@ -5,8 +5,8 @@ import UIKit
 /// Prevents accidental payment broadcasts while providing tactile feedback.
 struct SlideToSendButton: View {
     let title: String
-    var sendingTitle: String?
     let isSending: Bool
+    var resetToken: Int = 0
     let onConfirmed: () -> Void
 
     @State private var dragOffset: CGFloat = 0
@@ -48,7 +48,7 @@ struct SlideToSendButton: View {
                         Spacer()
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        Text(sendingTitle ?? String(localized: "label_broadcasting", defaultValue: "Broadcasting..."))
+                        Text(String(localized: "label_broadcasting", defaultValue: "Broadcasting..."))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.white)
                         Spacer()
@@ -126,6 +126,12 @@ struct SlideToSendButton: View {
                     dragOffset = 0
                     hasTriggered = false
                 }
+            }
+        }
+        .onChange(of: resetToken) { _, _ in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                dragOffset = 0
+                hasTriggered = false
             }
         }
     }

@@ -117,16 +117,25 @@ struct SendConfirmReceivesCard: View {
 
 /// Displays the fee breakdown and total debit from user's balance.
 struct SendConfirmFeeTotalCard: View {
+    var feeLabel: String = .init(localized: "label_total_fees", defaultValue: "Network Fee")
     let estimatedFeeSats: UInt64
+    var rateSatVb: UInt64?
     let totalDebitSats: UInt64
     let btcPrice: Double
 
     var body: some View {
         VStack(spacing: 8) {
             HStack {
-                Text(String(localized: "label_total_fees", defaultValue: "Network Fee"))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    Text(feeLabel)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    if let rate = rateSatVb, rate > 0 {
+                        Text("(\(rate) sat/vB)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 Spacer()
                 let feeUSD = (Double(estimatedFeeSats) / Double(Constants.satsInBTC)) * btcPrice
                 VStack(alignment: .trailing, spacing: 1) {

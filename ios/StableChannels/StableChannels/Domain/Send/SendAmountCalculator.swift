@@ -50,13 +50,15 @@ enum SendAmountCalculator {
         switch unit {
         case .usd:
             guard btcPrice > 0 else { return "" }
-            let usd = (Double(sats) / Double(Constants.satsInBTC)) * btcPrice
-            return String(format: "%.2f", usd)
+            let rawUSD = (Double(sats) / Double(Constants.satsInBTC)) * btcPrice
+            let flooredUSD = floor(rawUSD * 100.0) / 100.0
+            return String(format: "%.2f", flooredUSD)
         case .sats:
             return "\(sats)"
         case .btc:
-            let btc = Double(sats) / Double(Constants.satsInBTC)
-            return String(format: "%.8f", btc)
+            let rawBTC = Double(sats) / Double(Constants.satsInBTC)
+            let flooredBTC = floor(rawBTC * 100_000_000.0) / 100_000_000.0
+            return String(format: "%.8f", flooredBTC)
         }
     }
 

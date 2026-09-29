@@ -41,19 +41,24 @@ actor MockLNURLService: LNURLServiceProtocol {
 }
 
 final class LNURLServiceTests: XCTestCase {
+    override func tearDown() {
+        super.tearDown()
+        MockURLProtocol.requestHandler = nil
+    }
+
     func testMetadataParsing() {
         let metadataJSON = "[[\"text/plain\",\"Coffee Tip\"],[\"image/png;base64\",\"abc123def\"]]"
         let params = LNURLPayParams(
             tag: "payRequest",
             callback: "https://service.com/callback",
             minSendable: 1000,
-            maxSendable: 21_000_000_000,
+            maxSendable: 2_100_000_000_000_000_000,
             metadata: metadataJSON,
             commentAllowed: 140
         )
 
         XCTAssertEqual(params.minSats, 1)
-        XCTAssertEqual(params.maxSats, 21_000_000)
+        XCTAssertEqual(params.maxSats, 2_100_000_000_000_000)
         XCTAssertEqual(params.plainTextDescription, "Coffee Tip")
         XCTAssertFalse(params.hasCustomSendBounds)
     }

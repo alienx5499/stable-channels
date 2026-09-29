@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import LDKNode
 
@@ -116,8 +117,9 @@ enum PaymentDestinationClassifier {
         }
 
         // 5. Onchain Address
-        if lower.hasPrefix("bc1") || lower.hasPrefix("tb1") || lower.hasPrefix("1") || lower.hasPrefix("3") || lower
-            .hasPrefix("bcrt1") {
+        if lower.hasPrefix("bc1") || lower.hasPrefix("tb1") || lower.hasPrefix("bcrt1") ||
+            lower.hasPrefix("1") || lower.hasPrefix("3") ||
+            lower.hasPrefix("m") || lower.hasPrefix("n") || lower.hasPrefix("2") {
             if isValidOnchainAddress(normalized) {
                 return .valid(.onchain(address: normalized))
             }
@@ -165,21 +167,79 @@ enum PaymentDestinationClassifier {
         let lower = address.lowercased()
 
         // Bech32 / Bech32m addresses (Native Segwit & Taproot)
-        if lower.hasPrefix("bc1") || lower.hasPrefix("tb1") || lower.hasPrefix("bcrt1") {
-            guard let hrp = Bech32.verifyChecksum(bechString: address) else {
-                return false
-            }
-            return hrp == "bc" || hrp == "tb" || hrp == "bcrt"
+        if lower.hasPrefix("bc1") {
+            return Bech32.verifySegwitAddress(address, expectedHrp: "bc")
+        }
+        if lower.hasPrefix("tb1") {
+            return Bech32.verifySegwitAddress(address, expectedHrp: "tb")
+        }
+        if lower.hasPrefix("bcrt1") {
+            return Bech32.verifySegwitAddress(address, expectedHrp: "bcrt")
         }
 
-        // Base58 Legacy / Nested Segwit addresses (1... or 3... or testnet)
+        // Base58 Legacy / Nested Segwit addresses (1, 3, m, n, 2)
         if address.hasPrefix("1") || address.hasPrefix("3") || address.hasPrefix("m") || address
             .hasPrefix("n") || address.hasPrefix("2") {
             guard count >= 26 && count <= 35 else { return false }
-            let base58Charset = Set("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
-            return address.allSatisfy { base58Charset.contains($0) }
+            return Base58Check.verify(address)
         }
 
         return false
+    }
+}
+
+/// Zero-dependency Base58Check decoder and checksum verifier.
+enum Base58Check {
+    private static let pszBase58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+    private static let base58Map: [Int8] = {
+        var map = [Int8](repeating: -1, count: 128)
+        for (i, c) in pszBase58.enumerated() {
+            if let ascii = c.asciiValue, ascii < 128 {
+                map[Int(ascii)] = Int8(i)
+            }
+        }
+        return map
+    }()
+
+    static func decode(_ string: String) -> [UInt8]? {
+        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        var zeroes = 0
+        for char in trimmed {
+            if char == "1" { zeroes += 1 } else { break }
+        }
+
+        var b256 = [UInt8](repeating: 0, count: trimmed.count * 733 / 1000 + 1)
+        for char in trimmed {
+            guard let ascii = char.asciiValue, ascii < 128 else { return nil }
+            let carry = base58Map[Int(ascii)]
+            guard carry >= 0 else { return nil }
+            var c = Int(carry)
+            for j in (0..<b256.count).reversed() {
+                c += 58 * Int(b256[j])
+                b256[j] = UInt8(c & 0xFF)
+                c >>= 8
+            }
+        }
+
+        var start = 0
+        while start < b256.count && b256[start] == 0 {
+            start += 1
+        }
+
+        var result = [UInt8](repeating: 0, count: zeroes)
+        result.append(contentsOf: b256[start...])
+        return result
+    }
+
+    static func verify(_ string: String) -> Bool {
+        guard let decoded = decode(string), decoded.count == 25 else { return false }
+        let payload = decoded.prefix(21)
+        let checksum = decoded.suffix(4)
+        let hash1 = SHA256.hash(data: Data(payload))
+        let hash2 = SHA256.hash(data: Data(hash1))
+        let expected = Array(hash2.prefix(4))
+        return Array(checksum) == expected
     }
 }

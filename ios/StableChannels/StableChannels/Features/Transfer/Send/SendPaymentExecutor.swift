@@ -114,7 +114,10 @@ struct SendPaymentExecutor {
             comment: trimmedComment.isEmpty ? nil : trimmedComment
         )
         let bolt11 = try Bolt11Invoice.fromStr(invoiceStr: resp.pr)
-        if let invoiceMsat = bolt11.amountMilliSatoshis(), invoiceMsat != msat {
+        guard let invoiceMsat = bolt11.amountMilliSatoshis() else {
+            throw LNURLError.errorResponse(reason: "Amountless invoices are not permitted for LNURL pay.")
+        }
+        if invoiceMsat != msat {
             throw LNURLError.invoiceAmountMismatch(expectedMsat: msat, actualMsat: invoiceMsat)
         }
 
@@ -212,11 +215,11 @@ struct SendPaymentExecutor {
         feeRateSatVb: UInt64?,
         appState: AppState
     ) async throws -> SendPaymentResult {
+        let onchainSats = appState.spendableOnchainSats
         let txid = try appState.nodeService.sendAllOnchain(
             address: address,
             feeRateSatVb: feeRateSatVb
         )
-        let onchainSats = appState.onchainBalanceSats
         recordPayment(
             id: txid,
             type: "onchain",
@@ -240,10 +243,20 @@ struct SendPaymentExecutor {
         appState: AppState
     ) {
         // Guard against downgrading: if the event handler already marked
-        // this payment completed or failed, do not insert a stale "pending" row.
+        // this payment completed or failed, backfill details and do not insert "pending".
         if let existing = appState.databaseService?.paymentRepo.payment(paymentId: id) {
             let status = existing.status
             if status == "completed" || status == "succeeded" || status == "failed" {
+                let usd: Double? = price > 0 ? (Double(msat) / 1000.0 / Double(Constants.satsInBTC)) * price : nil
+                try? appState.databaseService?.paymentRepo.backfillPaymentDetails(
+                    paymentId: id,
+                    amountMsat: msat,
+                    amountUSD: usd,
+                    btcPrice: price > 0 ? price : nil,
+                    counterparty: nil,
+                    address: address,
+                    txid: txid
+                )
                 return
             }
         }
@@ -283,57 +296,53 @@ struct SendPaymentExecutor {
             }
         }
 
+        var settledObserver: (any NSObjectProtocol)?
+        var failedObserver: (any NSObjectProtocol)?
+
+        let stream = AsyncStream<SettlementOutcome> { continuation in
+            settledObserver = NotificationCenter.default.addObserver(
+                forName: .paymentSettled,
+                object: nil,
+                queue: .main
+            ) { note in
+                guard let pid = note.userInfo?["paymentId"] as? String, pid == paymentId else { return }
+                let hash = note.userInfo?["paymentHash"] as? String
+                continuation.yield(.settled(paymentHash: hash))
+                continuation.finish()
+            }
+
+            failedObserver = NotificationCenter.default.addObserver(
+                forName: .paymentFailed,
+                object: nil,
+                queue: .main
+            ) { note in
+                guard let pid = note.userInfo?["paymentId"] as? String, pid == paymentId else { return }
+                let reason = note.userInfo?["errorMessage"] as? String
+                    ?? note.userInfo?["reason"] as? String
+                    ?? "The payment did not complete. Check its status in History before trying again."
+                continuation.yield(.failed(reason: reason))
+                continuation.finish()
+            }
+
+            continuation.onTermination = { @Sendable _ in }
+        }
+
+        defer {
+            if let obs = settledObserver { NotificationCenter.default.removeObserver(obs) }
+            if let obs = failedObserver { NotificationCenter.default.removeObserver(obs) }
+        }
+
+        // Check DB once more now that observers are registered (avoids race between DB check and observer setup)
+        if let record = appState?.databaseService?.paymentRepo.payment(paymentId: paymentId) {
+            if record.status == "completed" || record.status == "succeeded" {
+                return .settled(paymentHash: record.paymentId)
+            } else if record.status == "failed" {
+                return .failed(reason: "The payment did not complete. Check its status in History before trying again.")
+            }
+        }
+
         return await withTaskGroup(of: SettlementOutcome.self) { group in
             group.addTask {
-                let stream = AsyncStream<SettlementOutcome> { continuation in
-                    let settledObserver = NotificationCenter.default.addObserver(
-                        forName: .paymentSettled,
-                        object: nil,
-                        queue: .main
-                    ) { note in
-                        guard let pid = note.userInfo?["paymentId"] as? String, pid == paymentId else { return }
-                        let hash = note.userInfo?["paymentHash"] as? String
-                        continuation.yield(.settled(paymentHash: hash))
-                        continuation.finish()
-                    }
-
-                    let failedObserver = NotificationCenter.default.addObserver(
-                        forName: .paymentFailed,
-                        object: nil,
-                        queue: .main
-                    ) { note in
-                        guard let pid = note.userInfo?["paymentId"] as? String, pid == paymentId else { return }
-                        let reason = note.userInfo?["errorMessage"] as? String
-                            ?? note.userInfo?["reason"] as? String
-                            ?? "The payment did not complete. Check its status in History before trying again."
-                        continuation.yield(.failed(reason: reason))
-                        continuation.finish()
-                    }
-
-                    continuation.onTermination = { @Sendable _ in
-                        NotificationCenter.default.removeObserver(settledObserver)
-                        NotificationCenter.default.removeObserver(failedObserver)
-                    }
-
-                    // Check DB again right after registering observers to avoid race
-                    Task { @MainActor in
-                        if let record = appState?.databaseService?.paymentRepo.payment(paymentId: paymentId) {
-                            if record.status == "completed" || record.status == "succeeded" {
-                                continuation.yield(.settled(paymentHash: record.paymentId))
-                                continuation.finish()
-                            } else if record.status == "failed" {
-                                continuation
-                                    .yield(
-                                        .failed(
-                                            reason: "The payment did not complete. Check its status in History before trying again."
-                                        )
-                                    )
-                                continuation.finish()
-                            }
-                        }
-                    }
-                }
-
                 for await outcome in stream {
                     return outcome
                 }

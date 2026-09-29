@@ -248,9 +248,9 @@ final class SendFlowModelTests: XCTestCase {
         // Standard onchain send: 140 vB * 10 sat/vB = 1400 sats
         XCTAssertEqual(onchainFee, 1_400)
 
-        // Priority tier: 14 sat/vB -> 140 * 14 = 1960 sats
+        // Priority tier: 13 sat/vB -> 140 * 13 = 1820 sats
         model.selectedFeeTier = .priority
-        XCTAssertEqual(model.estimatedFeeSats(appState: appState), 1_960)
+        XCTAssertEqual(model.estimatedFeeSats(appState: appState), 1_820)
     }
 
     func testIsInsufficientBalance_considersTotalDebitWithFee() {
@@ -272,12 +272,52 @@ final class SendFlowModelTests: XCTestCase {
         model.feeRateSatVb = 20
 
         model.selectedFeeTier = .economy
-        XCTAssertEqual(model.effectiveFeeRateSatVb, 14)
+        XCTAssertEqual(model.effectiveFeeRateSatVb, 16)
 
         model.selectedFeeTier = .standard
         XCTAssertEqual(model.effectiveFeeRateSatVb, 20)
 
         model.selectedFeeTier = .priority
-        XCTAssertEqual(model.effectiveFeeRateSatVb, 28)
+        XCTAssertEqual(model.effectiveFeeRateSatVb, 26)
+    }
+
+    func testCalculateMaxSendableSats_onchainDeductsFee() {
+        let appState = AppState()
+        appState.spendableOnchainSats = 10_000
+        let model = SendFlowModel()
+        model.inputText = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq"
+        model.onInputChanged()
+        model.feeRateSatVb = 10
+        model.selectedFeeTier = .standard
+
+        let maxSats = model.calculateMaxSendableSats(appState: appState)
+        let fee = model.estimatedFeeSatsForAmount(sats: maxSats, appState: appState)
+        XCTAssertEqual(maxSats + fee, 10_000)
+    }
+
+    func testCalculateMaxSendableSats_lightningDeductsRoutingFee() throws {
+        let appState = AppState()
+        appState.lightningBalanceSats = 50_000
+        let model = SendFlowModel()
+        model.destination = .lightningAddress(
+            handle: "alice",
+            domain: "tips.net",
+            url: try XCTUnwrap(URL(string: "https://tips.net"))
+        )
+
+        let maxSats = model.calculateMaxSendableSats(appState: appState)
+        let fee = model.estimatedFeeSatsForAmount(sats: maxSats, appState: appState)
+        XCTAssertLessThanOrEqual(maxSats + fee, 50_000)
+        XCTAssertGreaterThan(maxSats, 49_000)
+    }
+
+    func testResetTokenIncrementsOnEarlyReturn() async {
+        let appState = AppState()
+        let model = SendFlowModel()
+        model.step = .confirm
+        let initialToken = model.resetToken
+
+        await model.executeSend(appState: appState)
+        XCTAssertEqual(model.resetToken, initialToken + 1)
     }
 }

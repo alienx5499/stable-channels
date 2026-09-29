@@ -74,16 +74,20 @@ enum NetworkFeeSpeedTier: String, CaseIterable, Identifiable, Sendable {
     }
 
     /// Computes the effective fee rate in satoshis per virtual byte (sat/vB).
-    func effectiveRate(baseRate: UInt64) -> UInt64 {
+    /// Uses live `recommendedFees` directly when available, or a bounded estimate.
+    func effectiveRate(baseRate: UInt64, recommendedFees: RecommendedFees? = nil) -> UInt64 {
+        if let recommendedFees {
+            return recommendedFees.rate(for: self)
+        }
         let normalized = max(1, baseRate)
         switch self {
         case .economy:
-            let reduced = (normalized * 7) / 10
+            let reduced = (normalized * 8) / 10
             return max(1, reduced)
         case .standard:
             return normalized
         case .priority:
-            let boosted = (normalized * 14) / 10
+            let boosted = (normalized * 13) / 10
             return max(normalized + 1, boosted)
         }
     }

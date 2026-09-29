@@ -190,7 +190,6 @@ class NodeService: NodeServiceProtocol {
         // Ensure data directory exists
         try? FileManager.default.createDirectory(atPath: dataDir, withIntermediateDirectories: true)
 
-        self.activeNetwork = network
         var config = defaultConfig()
         config.storageDirPath = dataDir
         config.network = network
@@ -280,6 +279,7 @@ class NodeService: NodeServiceProtocol {
         self.node = ldkNode
         self.isRunning = true
         self.nodeId = ldkNode.nodeId()
+        self.activeNetwork = network
 
         // Connect to LSP — propagate error if custom LSP fails so switchLSP rolls back
         do {
@@ -310,6 +310,7 @@ class NodeService: NodeServiceProtocol {
         eventTask = nil
         try? node?.stop()
         node = nil
+        activeNetwork = nil
         isRunning = false
         nodeId = ""
         channels = []

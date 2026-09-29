@@ -20,7 +20,7 @@ struct LNURLPayParams: Codable, Equatable, Sendable {
     }
 
     var hasCustomSendBounds: Bool {
-        minSats > 1 || maxSats < 21_000_000
+        minSats > 1 || maxSats < 2_100_000_000_000_000
     }
 
     var plainTextDescription: String? {
