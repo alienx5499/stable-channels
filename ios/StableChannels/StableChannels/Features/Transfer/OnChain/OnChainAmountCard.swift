@@ -19,8 +19,9 @@ struct OnChainAmountCard: View {
                 Spacer()
             }
 
-            let available = hasReadyChannel && !appState.isSweeping ? appState.totalBalanceSats : appState
-                .spendableOnchainSats
+            let available = sendAll ? appState
+                .spendableOnchainSats :
+                (hasReadyChannel && !appState.isSweeping ? appState.totalBalanceSats : appState.spendableOnchainSats)
             let availableUSD = appState
                 .accountingBTCPrice > 0 ? (Double(available) / Double(Constants.satsInBTC)) * appState
                 .accountingBTCPrice : 0

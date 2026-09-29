@@ -4,17 +4,28 @@ import SwiftUI
 struct SendConfirmStepView: View {
     @Bindable var model: SendFlowModel
     @Environment(AppState.self) private var appState
-    @State private var hasCopiedAddress = false
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 10) {
-                    accountAssetCard
-                    addressCard
-                    recipientReceivesCard
+                    SendConfirmAssetCard(routeDescription: sourceRouteDescription)
 
-                    if case .onchain = model.destination {
+                    if let dest = model.destination {
+                        SendConfirmAddressCard(
+                            headerTitle: addressHeaderTitle,
+                            representation: AddressVisualChunker.formatDestination(dest),
+                            rawAddress: dest.rawDestination
+                        )
+                    }
+
+                    let sats = model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
+                    SendConfirmReceivesCard(
+                        amountSats: sats,
+                        btcPrice: appState.accountingBTCPrice
+                    )
+
+                    if case .onchain = model.destination, !isSpliceOut {
                         NetworkFeeSelectorView(
                             selectedTier: $model.selectedFeeTier,
                             baseFeeRateSatVb: model.feeRateSatVb ?? 10,
@@ -24,10 +35,17 @@ struct SendConfirmStepView: View {
                         )
                     }
 
-                    feeAndTotalCard
+                    SendConfirmFeeTotalCard(
+                        estimatedFeeSats: model.estimatedFeeSats(appState: appState),
+                        totalDebitSats: sats + model.estimatedFeeSats(appState: appState),
+                        btcPrice: appState.accountingBTCPrice
+                    )
 
                     if isInsufficientBalance {
-                        errorBanner("Insufficient balance. Total debit exceeds available funds.")
+                        errorBanner(String(
+                            localized: "error_insufficient_balance_total",
+                            defaultValue: "Insufficient balance. Total debit exceeds available funds."
+                        ))
                     } else if let error = model.errorMessage {
                         errorBanner(error)
                     }
@@ -55,12 +73,16 @@ struct SendConfirmStepView: View {
         }
         .onAppear {
             UIApplication.shared.sendAction(
-                Selector(("resignFirstResponder")),
+                #selector(UIResponder.resignFirstResponder),
                 to: nil,
                 from: nil,
                 for: nil
             )
         }
+    }
+
+    private var isSpliceOut: Bool {
+        appState.hasReadyChannel && !appState.isSweeping
     }
 
     private var isInsufficientBalance: Bool {
@@ -70,37 +92,11 @@ struct SendConfirmStepView: View {
     private var sendingStatusText: String {
         switch model.destination {
         case .bolt12:
-            return "Requesting Invoice..."
+            return String(localized: "status_requesting_invoice", defaultValue: "Requesting Invoice...")
         case .bolt11, .lightningAddress, .lnurlPay:
-            return "Routing Payment..."
+            return String(localized: "status_routing_payment", defaultValue: "Routing Payment...")
         case .onchain, .none:
-            return "Broadcasting..."
-        }
-    }
-
-    private var accountAssetCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(String(localized: "header_account_asset", defaultValue: "Asset & Network"))
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle().fill(Color.orange).frame(width: 32, height: 32)
-                    Image(systemName: "bitcoinsign").font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(String(localized: "label_bitcoin", defaultValue: "Bitcoin"))
-                        .font(.headline)
-                    Text(verbatim: sourceRouteDescription)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .padding(12)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+            return String(localized: "status_broadcasting", defaultValue: "Broadcasting...")
         }
     }
 
@@ -113,8 +109,7 @@ struct SendConfirmStepView: View {
         case .lightningAddress, .lnurlPay:
             return "Lightning • Instant"
         case .onchain:
-            let isReady = appState.nodeService.channels.contains(where: \.isChannelReady)
-            return isReady ? "Onchain • Splice-Out" : "Onchain • Standard"
+            return isSpliceOut ? "Onchain • Splice-Out" : "Onchain • Standard"
         case .none:
             return "Standard"
         }
@@ -127,111 +122,6 @@ struct SendConfirmStepView: View {
         case .lightningAddress, .lnurlPay: return String(localized: "header_recipient", defaultValue: "Recipient")
         case .onchain, .none: return String(localized: "header_address", defaultValue: "Recipient Address")
         }
-    }
-
-    private var addressCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(addressHeaderTitle)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if hasCopiedAddress {
-                    Text(String(localized: "label_copied", defaultValue: "Copied"))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.orange)
-                        .transition(.opacity)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                if let dest = model.destination {
-                    AddressVisualChunkView(representation: AddressVisualChunker.formatDestination(dest))
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
-            .contentShape(Rectangle())
-            .onTapGesture { copyAddress() }
-        }
-    }
-
-    private func copyAddress() {
-        guard let raw = model.destination?.rawDestination else { return }
-        UIPasteboard.general.string = raw
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        withAnimation(.easeInOut(duration: 0.2)) { hasCopiedAddress = true }
-        Task {
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-            withAnimation(.easeInOut(duration: 0.2)) { hasCopiedAddress = false }
-        }
-    }
-
-    private var recipientReceivesCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(String(localized: "header_recipient_receives", defaultValue: "Recipient Receives"))
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-
-            VStack(alignment: .leading, spacing: 2) {
-                let sats = model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
-                let usd = (Double(sats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
-                Text("\(usd.usdFormatted) USD")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                Text("\(sats.btcSpacedFormatted) BTC")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
-            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
-        }
-    }
-
-    private var feeLabelText: String {
-        switch model.destination {
-        case .bolt11, .bolt12, .lightningAddress, .lnurlPay:
-            return String(localized: "label_routing_fee", defaultValue: "Routing Fee (Lightning)")
-        case .onchain:
-            return "Network Fee (\(model.effectiveFeeRateSatVb) sat/vB)"
-        case .none:
-            return String(localized: "label_total_fees", defaultValue: "Network Fee")
-        }
-    }
-
-    private var feeAndTotalCard: some View {
-        let feeSats = estimatedFeeSats
-        let totalSats = model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice) + feeSats
-        let feeUSD = (Double(feeSats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
-        let totalUSD = (Double(totalSats) / Double(Constants.satsInBTC)) * appState.accountingBTCPrice
-
-        return VStack(spacing: 8) {
-            HStack {
-                Text(feeLabelText)
-                    .font(.subheadline).foregroundStyle(.secondary)
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(verbatim: "≈ \(feeUSD.usdFormatted) USD").font(.subheadline.weight(.medium))
-                    Text(verbatim: "\(feeSats.btcSpacedFormatted) BTC").font(.caption2).foregroundStyle(.secondary)
-                }
-            }
-            Divider()
-            HStack {
-                Text(String(localized: "label_total_spent", defaultValue: "Total Debit")).font(.headline)
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(verbatim: "≈ \(totalUSD.usdFormatted) USD").font(.headline)
-                    Text(verbatim: "\(totalSats.btcSpacedFormatted) BTC").font(.caption).foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(12)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
-    }
-
-    private var estimatedFeeSats: UInt64 {
-        model.estimatedFeeSats(appState: appState)
     }
 
     private func errorBanner(_ message: String) -> some View {

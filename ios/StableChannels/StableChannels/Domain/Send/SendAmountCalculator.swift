@@ -38,7 +38,7 @@ enum SendAmountCalculator {
         case .usd:
             guard btcPrice > 0 else { return 0 }
             let sats = (val / btcPrice) * Double(Constants.satsInBTC)
-            return (sats.isFinite && sats >= 1 && sats < Double(UInt64.max)) ? UInt64(sats) : 0
+            return (sats.isFinite && sats >= 0.5 && sats < Double(UInt64.max)) ? UInt64(round(sats)) : 0
         case .btc:
             let sats = val * Double(Constants.satsInBTC)
             return (sats.isFinite && sats >= 0.5 && sats < Double(UInt64.max)) ? UInt64(round(sats)) : 0

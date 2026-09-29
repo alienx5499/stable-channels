@@ -8,7 +8,7 @@ struct CurveProgressIndicator: View {
         case lemniscateBloom
     }
 
-    var curve: CurveType = .roseCurve
+    var curve: CurveType = .sixPetalSpiral
     var size: CGFloat = 64
     var tint: Color = .orange
     var strokeColor: Color?

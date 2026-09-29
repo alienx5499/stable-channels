@@ -12,11 +12,11 @@ struct SendSuccessStepView: View {
 
             ZStack {
                 Circle()
-                    .fill(Color.green.opacity(0.15))
+                    .fill(statusColor.opacity(0.15))
                     .frame(width: 90, height: 90)
-                Image(systemName: "checkmark.circle.fill")
+                Image(systemName: statusIconName)
                     .font(.system(size: 64))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(statusColor)
             }
 
             VStack(spacing: 6) {
@@ -33,7 +33,17 @@ struct SendSuccessStepView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                if isBolt12 {
+                if model.isPendingSettlement {
+                    Text(String(
+                        localized: "note_payment_pending",
+                        defaultValue: "Payment dispatched. Settlement is pending in the background. Check History for final status."
+                    ))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 4)
+                    .padding(.horizontal, 16)
+                } else if isBolt12 {
                     Text(String(
                         localized: "note_bolt12_asynchronous",
                         defaultValue: "Offer payment dispatched. Your node is requesting an invoice over Lightning onion messaging."
@@ -124,8 +134,21 @@ struct SendSuccessStepView: View {
         return false
     }
 
+    private var statusColor: Color {
+        model.isPendingSettlement ? .orange : .green
+    }
+
+    private var statusIconName: String {
+        model.isPendingSettlement ? "hourglass" : "checkmark.circle.fill"
+    }
+
     private var successTitle: String {
-        isBolt12 ? String(localized: "title_payment_initiated", defaultValue: "Payment Initiated") :
-            String(localized: "title_payment_sent", defaultValue: "Payment Sent")
+        if model.isPendingSettlement {
+            return String(localized: "title_payment_pending", defaultValue: "Payment Pending")
+        } else if isBolt12 {
+            return String(localized: "title_payment_initiated", defaultValue: "Payment Initiated")
+        } else {
+            return String(localized: "title_payment_sent", defaultValue: "Payment Sent")
+        }
     }
 }

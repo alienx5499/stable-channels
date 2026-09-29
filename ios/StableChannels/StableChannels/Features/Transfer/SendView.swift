@@ -56,6 +56,7 @@ struct SendView: View {
             }
             .animation(.easeInOut(duration: 0.25), value: model.isFetchingLNURL)
             .animation(.easeInOut(duration: 0.25), value: model.isSending)
+            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: model.step)
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

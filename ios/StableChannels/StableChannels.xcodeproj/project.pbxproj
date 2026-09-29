@@ -59,6 +59,9 @@
 		498244AA3022712F0086BDB6 /* BiometricProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498244A83022712F0086BDB6 /* BiometricProtocols.swift */; };
 		498244AB3022712F0086BDB6 /* BiometricToggleCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498244A93022712F0086BDB6 /* BiometricToggleCoordinator.swift */; };
 		4983BC9B2FCCA2B800E3B378 /* ShareableQRGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4983BC9A2FCCA2B800E3B378 /* ShareableQRGenerator.swift */; };
+		498BBC37306B5B58009FB746 /* SendConfirmCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498BBC36306B5B58009FB746 /* SendConfirmCards.swift */; };
+		498BBC3A306B5B76009FB746 /* SendFlowModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498BBC39306B5B76009FB746 /* SendFlowModelTests.swift */; };
+		498BBC3B306B5B76009FB746 /* CurveGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 498BBC38306B5B76009FB746 /* CurveGeometryTests.swift */; };
 		499127782FFEB4FB00D9C81F /* PaymentDirection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499127772FFEB4FB00D9C81F /* PaymentDirection.swift */; };
 		499127802FFEB50B00D9C81F /* IncomingPaymentHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 499127792FFEB50B00D9C81F /* IncomingPaymentHandler.swift */; };
 		499127812FFEB50B00D9C81F /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4991277A2FFEB50B00D9C81F /* Logger.swift */; };
@@ -295,6 +298,9 @@
 		498244A83022712F0086BDB6 /* BiometricProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricProtocols.swift; sourceTree = "<group>"; };
 		498244A93022712F0086BDB6 /* BiometricToggleCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricToggleCoordinator.swift; sourceTree = "<group>"; };
 		4983BC9A2FCCA2B800E3B378 /* ShareableQRGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareableQRGenerator.swift; sourceTree = "<group>"; };
+		498BBC36306B5B58009FB746 /* SendConfirmCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendConfirmCards.swift; sourceTree = "<group>"; };
+		498BBC38306B5B76009FB746 /* CurveGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurveGeometryTests.swift; sourceTree = "<group>"; };
+		498BBC39306B5B76009FB746 /* SendFlowModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendFlowModelTests.swift; sourceTree = "<group>"; };
 		499127772FFEB4FB00D9C81F /* PaymentDirection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentDirection.swift; sourceTree = "<group>"; };
 		499127792FFEB50B00D9C81F /* IncomingPaymentHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomingPaymentHandler.swift; sourceTree = "<group>"; };
 		4991277A2FFEB50B00D9C81F /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
@@ -864,6 +870,7 @@
 				D20000000000000000000026 /* AddressVisualChunkView.swift */,
 				D2000000000000000000004A /* NetworkFeeSelectorView.swift */,
 				D20000000000000000000030 /* SendAmountStepView.swift */,
+				498BBC36306B5B58009FB746 /* SendConfirmCards.swift */,
 				D20000000000000000000032 /* SendConfirmStepView.swift */,
 				D20000000000000000000044 /* SendDestinationBadgeView.swift */,
 				D20000000000000000000022 /* SendFlowModel.swift */,
@@ -935,6 +942,7 @@
 				4944458130540C3500B5A146 /* BinarySearchTests.swift */,
 				49DDD00D3054000100B5A146 /* ChannelAllocationTests.swift */,
 				49D4DB072FD02F4E0074ACD2 /* CloseTxidResolverTests.swift */,
+				498BBC38306B5B76009FB746 /* CurveGeometryTests.swift */,
 				49D4DB082FD02F4E0074ACD2 /* DatabaseServiceTests.swift */,
 				4944458230540C3500B5A146 /* ExtensionsFormattingTests.swift */,
 				49DAFB3B2FDB6587003BE0EB /* FeeRateServiceTests.swift */,
@@ -951,6 +959,7 @@
 				490224CB302F90A500DF84AA /* PriceServiceTests.swift */,
 				495895DC3051824D002CF62A /* QRCodeExtractorTests.swift */,
 				499DBE742FD2DADF003E89F9 /* ResilientEsploraClientTests.swift */,
+				498BBC39306B5B76009FB746 /* SendFlowModelTests.swift */,
 				490A1336304F147D005CDA39 /* SpliceBroadcastCheckerTests.swift */,
 				5C279A012FEA00010074ACD2 /* SpliceRepositoryTests.swift */,
 				D1A60F120000000000000004 /* SPVHeaderChainServiceTests.swift */,
@@ -1089,6 +1098,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				498BBC3A306B5B76009FB746 /* SendFlowModelTests.swift in Sources */,
+				498BBC3B306B5B76009FB746 /* CurveGeometryTests.swift in Sources */,
 				490224CC302F90A500DF84AA /* PriceServiceTests.swift in Sources */,
 				4944457E3053DB5000B5A146 /* PriceChartAlgorithmsTests.swift in Sources */,
 				49FEF36D30124CEE0089850F /* MempoolWebSocketServiceTests.swift in Sources */,
@@ -1167,6 +1178,7 @@
 				49A3297B300CC81D003EC383 /* WalletErrorMessages.swift in Sources */,
 				499F1E513009F02300936944 /* BlockHeightService.swift in Sources */,
 				499F1E543009F02300936944 /* TxConfirmationProvider.swift in Sources */,
+				498BBC37306B5B58009FB746 /* SendConfirmCards.swift in Sources */,
 				499F1E553009F02300936944 /* ConfirmationService.swift in Sources */,
 				49AD1B4B2FEE77F40015A7D9 /* SeedDisplayView.swift in Sources */,
 				49AD1B512FEE812E0015A7D9 /* NativeTimerAlert.swift in Sources */,

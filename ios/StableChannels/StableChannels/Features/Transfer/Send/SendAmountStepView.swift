@@ -186,14 +186,18 @@ struct SendAmountStepView: View {
 
     private var presetPercentages: some View {
         let available = model.availableSpendableSats(appState: appState)
-        let isMax = available > 0 && model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice) == available
+        let fee = model.estimatedFeeSats(appState: appState)
+        let maxSpendable = available > fee ? (available - fee) : available
+        let currentSats = model.computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
+        let isMax = available > 0 && (currentSats == maxSpendable || currentSats == available)
         return HStack(spacing: 12) {
             ForEach([25, 50, 100], id: \.self) { pct in
                 Button {
                     model.applyPercentage(
                         pct,
                         totalBalanceSats: available,
-                        btcPrice: appState.accountingBTCPrice
+                        btcPrice: appState.accountingBTCPrice,
+                        appState: appState
                     )
                 } label: {
                     if pct == 100 {

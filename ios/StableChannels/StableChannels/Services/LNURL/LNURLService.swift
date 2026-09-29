@@ -144,7 +144,18 @@ final class LNURLService: LNURLServiceProtocol {
     }
 
     func fetchInvoice(callback: String, amountMsat: UInt64, comment: String?) async throws -> LNURLPayInvoiceResponse {
-        guard var components = URLComponents(string: callback) else {
+        guard let initialUrl = URL(string: callback),
+              let scheme = initialUrl.scheme?.lowercased() else {
+            throw LNURLError.invalidResponse
+        }
+
+        let isHttps = scheme == "https"
+        let isOnionHttp = scheme == "http" && (initialUrl.host?.lowercased().hasSuffix(".onion") == true)
+        guard isHttps || isOnionHttp else {
+            throw LNURLError.networkError("LNURL callback requires HTTPS for clearnet endpoints.")
+        }
+
+        guard var components = URLComponents(url: initialUrl, resolvingAgainstBaseURL: false) else {
             throw LNURLError.invalidResponse
         }
 

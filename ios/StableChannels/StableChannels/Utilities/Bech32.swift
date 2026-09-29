@@ -1,9 +1,11 @@
 import Foundation
 
-/// High-performance, zero-dependency BIP-173 / BIP-350 Bech32 and Bech32m encoder and decoder.
+/// High-performance, zero-dependency BIP-173 Bech32 and BIP-350 Bech32m decoder.
 /// Optimized for low-latency LNURL-pay and Lightning Address resolution.
 enum Bech32 {
     private static let charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+    private static let bech32ChecksumConst: UInt32 = 1
+    private static let bech32mChecksumConst: UInt32 = 0x2BC8_30A3
 
     /// Direct O(1) 128-byte ASCII character lookup table (avoids Unicode hash maps and allocations).
     private static let asciiLookupTable: [Int8] = {
@@ -22,6 +24,7 @@ enum Bech32 {
         case invalidChecksum
         case bitsConversionFailed
         case invalidUtf8String
+        case insecureClearnetScheme
 
         var errorDescription: String? {
             switch self {
@@ -37,6 +40,8 @@ enum Bech32 {
                 return "Failed to convert 5-bit Bech32 data to 8-bit bytes."
             case .invalidUtf8String:
                 return "The decoded payload is not a valid UTF-8 string."
+            case .insecureClearnetScheme:
+                return "LNURL endpoint must use HTTPS for clearnet connections."
             }
         }
     }
@@ -66,7 +71,42 @@ enum Bech32 {
         for val in data {
             polymodStep(&chk, value: val)
         }
-        return chk == 1
+        return chk == bech32ChecksumConst || chk == bech32mChecksumConst
+    }
+
+    /// Verifies if a string is a valid Bech32 or Bech32m checksummed string and returns its lowercased HRP.
+    static func verifyChecksum(bechString: String) -> String? {
+        let trimmed = bechString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 8 else { return nil }
+
+        var hasLower = false
+        var hasUpper = false
+        for byte in trimmed.utf8 {
+            if byte >= 0x61 && byte <= 0x7A { hasLower = true }
+            if byte >= 0x41 && byte <= 0x5A { hasUpper = true }
+            if hasLower && hasUpper { return nil }
+        }
+
+        let lowercased = trimmed.lowercased()
+        guard let pos = lowercased.lastIndex(of: "1") else { return nil }
+        let hrp = lowercased[..<pos]
+        guard !hrp.isEmpty else { return nil }
+
+        let dataPart = lowercased[lowercased.index(after: pos)...]
+        guard dataPart.count >= 6 else { return nil }
+
+        var values = [UInt8]()
+        values.reserveCapacity(dataPart.count)
+
+        for char in dataPart {
+            guard let asciiVal = char.asciiValue, asciiVal < 128 else { return nil }
+            let val = asciiLookupTable[Int(asciiVal)]
+            guard val >= 0 else { return nil }
+            values.append(UInt8(val))
+        }
+
+        guard verifyChecksum(hrp: hrp.utf8, data: values) else { return nil }
+        return String(hrp)
     }
 
     // MARK: - 5-bit to 8-bit bit conversion
@@ -177,9 +217,15 @@ enum Bech32 {
         }
 
         guard let urlString = String(data: data, encoding: .utf8),
-              let url = URL(string: urlString),
-              url.scheme == "https" || url.scheme == "http" else {
+              let url = URL(string: urlString) else {
             throw Error.invalidUtf8String
+        }
+
+        let scheme = url.scheme?.lowercased()
+        let isHttps = scheme == "https"
+        let isOnionHttp = scheme == "http" && (url.host?.lowercased().hasSuffix(".onion") == true)
+        guard isHttps || isOnionHttp else {
+            throw Error.insecureClearnetScheme
         }
 
         return url

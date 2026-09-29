@@ -54,6 +54,7 @@ struct LemniscateBloomIcon: View {
     @State private var trimEnd: CGFloat = 0.0
     @State private var isBloomed: Bool = false
     @State private var scaleBounce: CGFloat = 1.0
+    @State private var bloomTask: Task<Void, Never>?
 
     var body: some View {
         let width = size * 1.5
@@ -95,7 +96,14 @@ struct LemniscateBloomIcon: View {
         }
         .frame(width: width, height: height)
         .scaleEffect(scaleBounce)
-        .onChange(of: isActive, initial: true) { _, active in
+        .onAppear {
+            if isActive {
+                trimEnd = 1.0
+                isBloomed = true
+                scaleBounce = 1.0
+            }
+        }
+        .onChange(of: isActive, initial: false) { _, active in
             if active {
                 triggerBloom()
             } else {
@@ -105,17 +113,21 @@ struct LemniscateBloomIcon: View {
     }
 
     private func triggerBloom() {
-        trimEnd = 0.0
-        isBloomed = false
+        bloomTask?.cancel()
+        bloomTask = Task { @MainActor in
+            trimEnd = 0.0
+            isBloomed = false
 
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 
-        withAnimation(.spring(response: 0.65, dampingFraction: 0.75)) {
-            trimEnd = 1.0
-            scaleBounce = 1.14
-        }
+            withAnimation(.spring(response: 0.65, dampingFraction: 0.75)) {
+                trimEnd = 1.0
+                scaleBounce = 1.14
+            }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
+            try? await Task.sleep(nanoseconds: 650_000_000)
+            guard !Task.isCancelled else { return }
+
             withAnimation(.spring(response: 0.35, dampingFraction: 0.70)) {
                 scaleBounce = 1.0
                 isBloomed = true
@@ -125,6 +137,8 @@ struct LemniscateBloomIcon: View {
     }
 
     private func resetBloom() {
+        bloomTask?.cancel()
+        bloomTask = nil
         withAnimation(.easeOut(duration: 0.2)) {
             trimEnd = 0.0
             isBloomed = false

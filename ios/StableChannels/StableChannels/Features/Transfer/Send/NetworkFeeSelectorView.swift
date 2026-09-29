@@ -39,8 +39,7 @@ struct NetworkFeeSelectorView: View {
     private func feeTierOption(_ tier: NetworkFeeSpeedTier) -> some View {
         let isSelected = selectedTier == tier
         let rate = tier.effectiveRate(baseRate: baseFeeRateSatVb)
-        let vbytes = isSendAll ? Constants.estimatedOnchainSendAllVBytes : Constants.estimatedOnchainSendVBytes
-        let feeSats = rate * vbytes
+        let feeSats = PaymentFeeEstimator.estimateOnchainFee(feeRateSatVb: rate, isSendAll: isSendAll)
         let feeUSD = (Double(feeSats) / Double(Constants.satsInBTC)) * btcPrice
 
         return Button {

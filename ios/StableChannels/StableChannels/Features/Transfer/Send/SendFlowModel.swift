@@ -24,6 +24,7 @@ final class SendFlowModel {
     var successPaymentId: String?
     var successTxid: String?
     var sentAmountSats: UInt64 = 0
+    var isPendingSettlement: Bool = false
     var feeRateSatVb: UInt64?
     var selectedFeeTier: NetworkFeeSpeedTier = .standard
 
@@ -40,13 +41,21 @@ final class SendFlowModel {
 
     func onInputChanged() {
         errorMessage = nil
+        let previousDestination = destination
         classification = PaymentDestinationClassifier.classify(inputText)
         switch classification {
         case .valid(let target):
-            destination = target
+            if destination != target {
+                destination = target
+                lnurlParams = nil
+                lnurlComment = ""
+                amountInputText = ""
+            }
         case .invalid, .empty:
             destination = nil
             lnurlParams = nil
+            lnurlComment = ""
+            amountInputText = ""
         }
     }
 
@@ -106,8 +115,13 @@ final class SendFlowModel {
         let sats = computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
         switch destination {
         case .bolt11, .bolt12, .lightningAddress, .lnurlPay:
-            let base = UInt64(Constants.lightningDefaultForwardingFeeBaseMsat)
-            let prop = UInt64(Constants.lightningDefaultForwardingFeeProportionalMillionths)
+            let readyChannel = appState.nodeService.channels.first(where: \.isChannelReady)
+            let base = readyChannel?.counterpartyForwardingInfoFeeBaseMsat
+                .map { UInt64($0) }
+                ?? UInt64(Constants.lightningDefaultForwardingFeeBaseMsat)
+            let prop = readyChannel?.counterpartyForwardingInfoFeeProportionalMillionths
+                .map { UInt64($0) }
+                ?? UInt64(Constants.lightningDefaultForwardingFeeProportionalMillionths)
             return PaymentFeeEstimator.estimateLightningFee(sats: sats, baseMsat: base, proportionalMillionths: prop)
         case .onchain:
             return PaymentFeeEstimator.estimateOnchainFee(
@@ -183,13 +197,19 @@ final class SendFlowModel {
         amountInputText = SendAmountCalculator.formatSatsForUnit(sats, unit: newUnit, btcPrice: btcPrice)
     }
 
-    func applyPercentage(_ percent: Int, totalBalanceSats: UInt64, btcPrice: Double) {
-        amountInputText = SendAmountCalculator.calculatePercentageAmount(
-            percent: percent,
-            totalBalanceSats: totalBalanceSats,
-            unit: amountUnit,
-            btcPrice: btcPrice
-        )
+    func applyPercentage(_ percent: Int, totalBalanceSats: UInt64, btcPrice: Double, appState: AppState? = nil) {
+        if percent == 100, let appState {
+            let baseFee = estimatedFeeSats(appState: appState)
+            let targetSats = totalBalanceSats > baseFee ? (totalBalanceSats - baseFee) : 0
+            amountInputText = SendAmountCalculator.formatSatsForUnit(targetSats, unit: amountUnit, btcPrice: btcPrice)
+        } else {
+            amountInputText = SendAmountCalculator.calculatePercentageAmount(
+                percent: percent,
+                totalBalanceSats: totalBalanceSats,
+                unit: amountUnit,
+                btcPrice: btcPrice
+            )
+        }
     }
 
     func executeSend(appState: AppState) async {
@@ -237,6 +257,7 @@ final class SendFlowModel {
                 sentAmountSats = result.sentAmountSats
                 successTxid = txid
                 successPaymentId = result.paymentId
+                isPendingSettlement = false
                 step = .success
                 return
             }
@@ -253,12 +274,17 @@ final class SendFlowModel {
                     timeout = 0
                 }
 
-                let outcome = await SendPaymentExecutor.awaitPaymentSettlement(paymentId: pid, timeoutSeconds: timeout)
+                let outcome = await SendPaymentExecutor.awaitPaymentSettlement(
+                    paymentId: pid,
+                    timeoutSeconds: timeout,
+                    appState: appState
+                )
                 switch outcome {
                 case .settled:
                     sentAmountSats = result.sentAmountSats
                     successPaymentId = pid
                     successTxid = nil
+                    isPendingSettlement = false
                     step = .success
                 case .failed(let reason):
                     errorMessage = reason
@@ -266,6 +292,7 @@ final class SendFlowModel {
                     sentAmountSats = result.sentAmountSats
                     successPaymentId = pid
                     successTxid = nil
+                    isPendingSettlement = true
                     step = .success
                 }
             }

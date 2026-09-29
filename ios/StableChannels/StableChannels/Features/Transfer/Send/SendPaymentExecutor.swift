@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import LDKNode
 
@@ -116,6 +117,33 @@ struct SendPaymentExecutor {
         if let invoiceMsat = bolt11.amountMilliSatoshis(), invoiceMsat != msat {
             throw LNURLError.amountOutOfBounds(minSats: params.minSats, maxSats: params.maxSats)
         }
+
+        // LUD-06 Security: Verify invoice description hash equals SHA256(metadata)
+        let metadataDigest = SHA256.hash(data: Data(params.metadata.utf8))
+        let expectedHashHex = metadataDigest.map { String(format: "%02x", $0) }.joined()
+        switch bolt11.invoiceDescription() {
+        case .hash(let hash):
+            guard hash.lowercased() == expectedHashHex.lowercased() else {
+                throw LNURLError.errorResponse(reason: "Invoice description hash does not match payee metadata.")
+            }
+        case .direct(let desc):
+            guard desc == params.metadata || desc.lowercased() == expectedHashHex.lowercased() else {
+                throw LNURLError.errorResponse(reason: "Invoice description does not match payee metadata.")
+            }
+        }
+
+        // Verify invoice has not expired
+        guard !bolt11.isExpired() else {
+            throw LNURLError.errorResponse(reason: "The invoice returned by the LNURL service has expired.")
+        }
+
+        // Verify invoice network matches active node network
+        if let activeNetwork = appState.nodeService.activeNetwork {
+            guard bolt11.network() == activeNetwork else {
+                throw LNURLError.errorResponse(reason: "Invoice network does not match the node network.")
+            }
+        }
+
         try appState.ensureNoUnsettledSurplus(amountMsat: msat)
         let paymentId = try appState.nodeService.sendPayment(invoice: bolt11)
         recordPayment(id: "\(paymentId)", type: "lightning", msat: msat, price: price, appState: appState)
@@ -231,51 +259,83 @@ struct SendPaymentExecutor {
 
     static func awaitPaymentSettlement(
         paymentId: String,
-        timeoutSeconds: TimeInterval
+        timeoutSeconds: TimeInterval,
+        appState: AppState? = nil
     ) async -> SettlementOutcome {
-        await withCheckedContinuation { continuation in
-            let lock = NSLock()
-            var hasResumed = false
+        // Fast-path: check if payment settled or failed before observer was attached
+        if let record = appState?.databaseService?.paymentRepo.payment(paymentId: paymentId) {
+            if record.status == "completed" || record.status == "succeeded" {
+                return .settled(paymentHash: record.paymentId)
+            } else if record.status == "failed" {
+                return .failed(reason: "The payment did not complete. Check its status in History before trying again.")
+            }
+        }
 
-            var settledObserver: NSObjectProtocol?
-            var failedObserver: NSObjectProtocol?
+        return await withTaskGroup(of: SettlementOutcome.self) { group in
+            group.addTask {
+                let stream = AsyncStream<SettlementOutcome> { continuation in
+                    let settledObserver = NotificationCenter.default.addObserver(
+                        forName: .paymentSettled,
+                        object: nil,
+                        queue: .main
+                    ) { note in
+                        guard let pid = note.userInfo?["paymentId"] as? String, pid == paymentId else { return }
+                        let hash = note.userInfo?["paymentHash"] as? String
+                        continuation.yield(.settled(paymentHash: hash))
+                        continuation.finish()
+                    }
 
-            let finish: (SettlementOutcome) -> Void = { outcome in
-                lock.lock()
-                defer { lock.unlock() }
-                guard !hasResumed else { return }
-                hasResumed = true
-                if let s = settledObserver { NotificationCenter.default.removeObserver(s) }
-                if let f = failedObserver { NotificationCenter.default.removeObserver(f) }
-                continuation.resume(returning: outcome)
+                    let failedObserver = NotificationCenter.default.addObserver(
+                        forName: .paymentFailed,
+                        object: nil,
+                        queue: .main
+                    ) { note in
+                        guard let pid = note.userInfo?["paymentId"] as? String, pid == paymentId else { return }
+                        let reason = note.userInfo?["errorMessage"] as? String
+                            ?? note.userInfo?["reason"] as? String
+                            ?? "The payment did not complete. Check its status in History before trying again."
+                        continuation.yield(.failed(reason: reason))
+                        continuation.finish()
+                    }
+
+                    continuation.onTermination = { @Sendable _ in
+                        NotificationCenter.default.removeObserver(settledObserver)
+                        NotificationCenter.default.removeObserver(failedObserver)
+                    }
+
+                    // Check DB again right after registering observers to avoid race
+                    Task { @MainActor in
+                        if let record = appState?.databaseService?.paymentRepo.payment(paymentId: paymentId) {
+                            if record.status == "completed" || record.status == "succeeded" {
+                                continuation.yield(.settled(paymentHash: record.paymentId))
+                                continuation.finish()
+                            } else if record.status == "failed" {
+                                continuation
+                                    .yield(
+                                        .failed(
+                                            reason: "The payment did not complete. Check its status in History before trying again."
+                                        )
+                                    )
+                                continuation.finish()
+                            }
+                        }
+                    }
+                }
+
+                for await outcome in stream {
+                    return outcome
+                }
+                return .timedOut
             }
 
-            settledObserver = NotificationCenter.default.addObserver(
-                forName: .paymentSettled,
-                object: nil,
-                queue: .main
-            ) { note in
-                guard let pid = note.userInfo?["paymentId"] as? String, pid == paymentId else { return }
-                let hash = note.userInfo?["paymentHash"] as? String
-                finish(.settled(paymentHash: hash))
-            }
-
-            failedObserver = NotificationCenter.default.addObserver(
-                forName: .paymentFailed,
-                object: nil,
-                queue: .main
-            ) { note in
-                guard let pid = note.userInfo?["paymentId"] as? String, pid == paymentId else { return }
-                let reason = note.userInfo?["errorMessage"] as? String
-                    ?? note.userInfo?["reason"] as? String
-                    ?? "The payment did not complete. Check its status in History before trying again."
-                finish(.failed(reason: reason))
-            }
-
-            Task {
+            group.addTask {
                 try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
-                finish(.timedOut)
+                return .timedOut
             }
+
+            let result = await group.next() ?? .timedOut
+            group.cancelAll()
+            return result
         }
     }
 }

@@ -162,8 +162,24 @@ enum PaymentDestinationClassifier {
     private static func isValidOnchainAddress(_ address: String) -> Bool {
         let count = address.count
         guard count >= 26 && count <= 90 else { return false }
-        return address.utf8.allSatisfy { byte in
-            (0x30...0x39).contains(byte) || (0x41...0x5A).contains(byte) || (0x61...0x7A).contains(byte)
+        let lower = address.lowercased()
+
+        // Bech32 / Bech32m addresses (Native Segwit & Taproot)
+        if lower.hasPrefix("bc1") || lower.hasPrefix("tb1") || lower.hasPrefix("bcrt1") {
+            guard let hrp = Bech32.verifyChecksum(bechString: address) else {
+                return false
+            }
+            return hrp == "bc" || hrp == "tb" || hrp == "bcrt"
         }
+
+        // Base58 Legacy / Nested Segwit addresses (1... or 3... or testnet)
+        if address.hasPrefix("1") || address.hasPrefix("3") || address.hasPrefix("m") || address
+            .hasPrefix("n") || address.hasPrefix("2") {
+            guard count >= 26 && count <= 35 else { return false }
+            let base58Charset = Set("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
+            return address.allSatisfy { base58Charset.contains($0) }
+        }
+
+        return false
     }
 }

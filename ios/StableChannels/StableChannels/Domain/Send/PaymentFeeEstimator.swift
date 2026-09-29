@@ -19,8 +19,8 @@ enum PaymentFeeEstimator {
     static func estimateOnchainFee(
         feeRateSatVb: UInt64,
         isSendAll: Bool,
-        sendVBytes: UInt64 = 140,
-        sendAllVBytes: UInt64 = 110
+        sendVBytes: UInt64 = Constants.estimatedOnchainSendVBytes,
+        sendAllVBytes: UInt64 = Constants.estimatedOnchainSendAllVBytes
     ) -> UInt64 {
         let vbytes = isSendAll ? sendAllVBytes : sendVBytes
         return saturatingMultiply(feeRateSatVb, vbytes)
@@ -49,9 +49,9 @@ enum NetworkFeeSpeedTier: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .economy: return "Economy"
-        case .standard: return "Standard"
-        case .priority: return "Priority"
+        case .economy: return String(localized: "tier_economy", defaultValue: "Economy")
+        case .standard: return String(localized: "tier_standard", defaultValue: "Standard")
+        case .priority: return String(localized: "tier_priority", defaultValue: "Priority")
         }
     }
 

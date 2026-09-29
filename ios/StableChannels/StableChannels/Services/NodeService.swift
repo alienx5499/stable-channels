@@ -108,6 +108,7 @@ final class EventAckToken {
 protocol NodeServiceProtocol {
     var node: Node? { get }
     var isRunning: Bool { get }
+    var activeNetwork: Network? { get }
     var nodeId: String { get }
     var channels: [ChannelDetails] { get }
     var savedMnemonic: String? { get }
@@ -122,6 +123,7 @@ class NodeService: NodeServiceProtocol {
 
     private(set) var node: Node?
     private(set) var isRunning = false
+    private(set) var activeNetwork: Network?
     /// True while start() is in flight (incl. lock acquisition and build).
     /// Lets background-stop logic distinguish "abandoned before node came up"
     /// (safe to release the wallet-dir lock) from "start owns the lock".
@@ -188,6 +190,7 @@ class NodeService: NodeServiceProtocol {
         // Ensure data directory exists
         try? FileManager.default.createDirectory(atPath: dataDir, withIntermediateDirectories: true)
 
+        self.activeNetwork = network
         var config = defaultConfig()
         config.storageDirPath = dataDir
         config.network = network
