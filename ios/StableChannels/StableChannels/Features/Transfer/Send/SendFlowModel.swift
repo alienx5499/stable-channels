@@ -28,9 +28,23 @@ final class SendFlowModel {
     var feeRateSatVb: UInt64?
     var selectedFeeTier: NetworkFeeSpeedTier = .standard
 
-    var effectiveFeeRateSatVb: UInt64 {
-        let base = feeRateSatVb ?? 10
+    /// Returns the effective fee rate, or nil when the rate has not loaded
+    /// and the selected tier is `.standard` (lets LDK pick its own estimate).
+    var effectiveFeeRateSatVb: UInt64? {
+        guard let base = feeRateSatVb else {
+            // Standard tier: nil signals LDK to use its internal estimate.
+            // Non-standard tiers require a known base rate.
+            return selectedFeeTier == .standard ? nil : nil
+        }
         return selectedFeeTier.effectiveRate(baseRate: base)
+    }
+
+    /// True when the fee rate has loaded or the selected tier does not need one.
+    var isFeeRateReady: Bool {
+        if case .onchain = destination {
+            return feeRateSatVb != nil || selectedFeeTier == .standard
+        }
+        return true
     }
 
     let lnurlService: LNURLServiceProtocol
@@ -113,6 +127,10 @@ final class SendFlowModel {
 
     func estimatedFeeSats(appState: AppState) -> UInt64 {
         let sats = computeEffectiveSats(btcPrice: appState.accountingBTCPrice)
+        return estimatedFeeSatsForAmount(sats: sats, appState: appState)
+    }
+
+    func estimatedFeeSatsForAmount(sats: UInt64, appState: AppState) -> UInt64 {
         switch destination {
         case .bolt11, .bolt12, .lightningAddress, .lnurlPay:
             let readyChannel = appState.nodeService.channels.first(where: \.isChannelReady)
@@ -124,8 +142,9 @@ final class SendFlowModel {
                 ?? UInt64(Constants.lightningDefaultForwardingFeeProportionalMillionths)
             return PaymentFeeEstimator.estimateLightningFee(sats: sats, baseMsat: base, proportionalMillionths: prop)
         case .onchain:
+            let rate = effectiveFeeRateSatVb ?? 10
             return PaymentFeeEstimator.estimateOnchainFee(
-                feeRateSatVb: effectiveFeeRateSatVb,
+                feeRateSatVb: rate,
                 isSendAll: false
             )
         case .none:
@@ -199,9 +218,15 @@ final class SendFlowModel {
 
     func applyPercentage(_ percent: Int, totalBalanceSats: UInt64, btcPrice: Double, appState: AppState? = nil) {
         if percent == 100, let appState {
-            let baseFee = estimatedFeeSats(appState: appState)
-            let targetSats = totalBalanceSats > baseFee ? (totalBalanceSats - baseFee) : 0
-            amountInputText = SendAmountCalculator.formatSatsForUnit(targetSats, unit: amountUnit, btcPrice: btcPrice)
+            // Solve for max sats such that sats + fee(sats) <= available.
+            // Two iterations converge because the fee is monotonic.
+            let available = availableSpendableSats(appState: appState)
+            var candidate = available
+            for _ in 0..<2 {
+                let fee = estimatedFeeSatsForAmount(sats: candidate, appState: appState)
+                candidate = available > fee ? (available - fee) : 0
+            }
+            amountInputText = SendAmountCalculator.formatSatsForUnit(candidate, unit: amountUnit, btcPrice: btcPrice)
         } else {
             amountInputText = SendAmountCalculator.calculatePercentageAmount(
                 percent: percent,
@@ -214,9 +239,14 @@ final class SendFlowModel {
 
     func executeSend(appState: AppState) async {
         guard let dest = destination else { return }
+        guard !isSending else { return }
         errorMessage = nil
-        isSending = true
-        defer { isSending = false }
+
+        // For onchain sends, block if fee rate has not loaded (non-standard tier)
+        if case .onchain = dest, !isFeeRateReady {
+            errorMessage = "Waiting for network fee rate. Please wait a moment."
+            return
+        }
 
         let authReason = "Confirm payment to \(dest.displayTitle)"
         let authEnabled = UserDefaults.standard.bool(forKey: "transactionAuthEnabled")
@@ -227,6 +257,9 @@ final class SendFlowModel {
                 return
             }
         }
+
+        isSending = true
+        defer { isSending = false }
 
         appState.ensureLSPConnected()
         let sats = computeEffectiveSats(btcPrice: appState.accountingBTCPrice)

@@ -66,6 +66,7 @@ enum LNURLError: Swift.Error, LocalizedError {
     case errorResponse(reason: String)
     case unsupportedTag(tag: String)
     case amountOutOfBounds(minSats: UInt64, maxSats: UInt64)
+    case invoiceAmountMismatch(expectedMsat: UInt64, actualMsat: UInt64)
     case networkError(String)
 
     var errorDescription: String? {
@@ -80,6 +81,8 @@ enum LNURLError: Swift.Error, LocalizedError {
             return "Unsupported LNURL tag: \(tag). Only LNURL-pay is supported."
         case let .amountOutOfBounds(minSats, maxSats):
             return "Amount must be between \(minSats) and \(maxSats) sats."
+        case let .invoiceAmountMismatch(expected, actual):
+            return "Invoice amount (\(actual / 1000) sats) does not match requested amount (\(expected / 1000) sats)."
         case let .networkError(msg):
             return "LNURL network request failed: \(msg)"
         }

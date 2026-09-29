@@ -64,8 +64,8 @@ struct SendConfirmStepView: View {
                 ) {
                     Task { await model.executeSend(appState: appState) }
                 }
-                .disabled(isInsufficientBalance)
-                .opacity(isInsufficientBalance ? 0.5 : 1.0)
+                .disabled(isInsufficientBalance || !model.isFeeRateReady)
+                .opacity(isInsufficientBalance || !model.isFeeRateReady ? 0.5 : 1.0)
             }
             .padding(.horizontal, 16)
             .padding(.top, 6)

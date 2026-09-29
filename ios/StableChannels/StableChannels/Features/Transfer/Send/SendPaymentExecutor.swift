@@ -115,7 +115,7 @@ struct SendPaymentExecutor {
         )
         let bolt11 = try Bolt11Invoice.fromStr(invoiceStr: resp.pr)
         if let invoiceMsat = bolt11.amountMilliSatoshis(), invoiceMsat != msat {
-            throw LNURLError.amountOutOfBounds(minSats: params.minSats, maxSats: params.maxSats)
+            throw LNURLError.invoiceAmountMismatch(expectedMsat: msat, actualMsat: invoiceMsat)
         }
 
         // LUD-06 Security: Verify invoice description hash equals SHA256(metadata)
@@ -126,10 +126,11 @@ struct SendPaymentExecutor {
             guard hash.lowercased() == expectedHashHex.lowercased() else {
                 throw LNURLError.errorResponse(reason: "Invoice description hash does not match payee metadata.")
             }
-        case .direct(let desc):
-            guard desc == params.metadata || desc.lowercased() == expectedHashHex.lowercased() else {
-                throw LNURLError.errorResponse(reason: "Invoice description does not match payee metadata.")
-            }
+        case .direct:
+            // LUD-06 requires h tag (description_hash). Invoices using a direct
+            // description field instead of a hash are non-compliant.
+            throw LNURLError
+                .errorResponse(reason: "Invoice uses direct description instead of required description hash (h tag).")
         }
 
         // Verify invoice has not expired
@@ -137,11 +138,13 @@ struct SendPaymentExecutor {
             throw LNURLError.errorResponse(reason: "The invoice returned by the LNURL service has expired.")
         }
 
-        // Verify invoice network matches active node network
-        if let activeNetwork = appState.nodeService.activeNetwork {
-            guard bolt11.network() == activeNetwork else {
-                throw LNURLError.errorResponse(reason: "Invoice network does not match the node network.")
-            }
+        // Verify invoice network matches active node network.
+        // Fail closed: if the node network is unknown, reject to avoid cross-network payment.
+        guard let activeNetwork = appState.nodeService.activeNetwork else {
+            throw LNURLError.errorResponse(reason: "Cannot verify invoice network: node network is unavailable.")
+        }
+        guard bolt11.network() == activeNetwork else {
+            throw LNURLError.errorResponse(reason: "Invoice network does not match the node network.")
         }
 
         try appState.ensureNoUnsettledSurplus(amountMsat: msat)
@@ -236,6 +239,15 @@ struct SendPaymentExecutor {
         txid: String? = nil,
         appState: AppState
     ) {
+        // Guard against downgrading: if the event handler already marked
+        // this payment completed or failed, do not insert a stale "pending" row.
+        if let existing = appState.databaseService?.paymentRepo.payment(paymentId: id) {
+            let status = existing.status
+            if status == "completed" || status == "succeeded" || status == "failed" {
+                return
+            }
+        }
+
         let usd: Double? = price > 0 ? (Double(msat) / 1000.0 / Double(Constants.satsInBTC)) * price : nil
         _ = try? appState.databaseService?.paymentRepo.recordPayment(
             paymentId: id,
