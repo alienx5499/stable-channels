@@ -132,6 +132,8 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+    // Google Play In-App Updates: tells Home when a newer version is on Play.
+    implementation("com.google.android.play:app-update-ktx:2.1.0")
 
     // Biometric authentication
     implementation("androidx.biometric:biometric:1.2.0-alpha05")

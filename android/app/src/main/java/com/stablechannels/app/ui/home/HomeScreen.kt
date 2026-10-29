@@ -62,6 +62,7 @@ fun HomeScreen(appState: AppState, modifier: Modifier = Modifier) {
     val nativeSatsCached by appState.nativeSats.collectAsState()
     val lastRxTxid by appState.lastReceiveTxid.collectAsState()
     val lastCloseTxid by appState.lastCloseTxid.collectAsState()
+    val availableUpdate by appState.availableUpdate.collectAsState()
     val statusMessage by appState.statusMessage.collectAsState()
     val onchainSats by appState.onchainBalanceSats.collectAsState()
     val hasReadyChannel by appState.hasReadyChannel.collectAsState()
@@ -176,6 +177,12 @@ fun HomeScreen(appState: AppState, modifier: Modifier = Modifier) {
             // Notification warning
             if (!notificationsEnabled) {
                 HomeNotificationBanner()
+                Spacer(Modifier.height(8.dp))
+            }
+
+            // Newer version on Google Play
+            availableUpdate?.let {
+                UpdateAvailableCard(onDismiss = { appState.dismissUpdate() })
                 Spacer(Modifier.height(8.dp))
             }
 

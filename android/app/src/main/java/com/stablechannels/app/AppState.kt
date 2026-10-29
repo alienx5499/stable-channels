@@ -5,11 +5,14 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.firebase.messaging.FirebaseMessaging
+import com.stablechannels.app.domain.update.UpdateBanner
 import com.stablechannels.app.models.*
 import com.stablechannels.app.push.FCMService
 import com.stablechannels.app.push.StabilityProcessingService
 import com.stablechannels.app.services.*
+import com.stablechannels.app.services.AppUpdateChecker
 import com.stablechannels.app.services.CloseTxidResolver
 import com.stablechannels.app.services.fees.FeeRateService
 import com.stablechannels.app.services.websocket.MempoolWebSocketClient
@@ -92,6 +95,7 @@ class AppState(private val context: Context) : ViewModel() {
         // Covers ordinary quick app-switches without keeping an unserviced cached Android
         // process in control of the node for longer than the common return window.
         private const val QUICK_SWITCH_GRACE_MS = 10_000L
+        private const val DISMISSED_UPDATE_KEY = "dismissed_version_code"
 
         data class ChannelState(
             val hasReady: Boolean,
@@ -590,6 +594,13 @@ class AppState(private val context: Context) : ViewModel() {
 
     private val _isOnline = MutableStateFlow(context.isOnline())
     val isOnline: StateFlow<Boolean> = _isOnline
+
+    /** A newer Play version code the Home card offers, or null. */
+    private val _availableUpdate = MutableStateFlow<Int?>(null)
+    val availableUpdate: StateFlow<Int?> = _availableUpdate
+    private val updatePrefs
+        get() = context.getSharedPreferences("app_update", Context.MODE_PRIVATE)
+
     private var connectivityJob: Job? = null
     private val nodeStartDeferredForOffline = AtomicBoolean(false)
 
@@ -1098,7 +1109,25 @@ class AppState(private val context: Context) : ViewModel() {
             },
         )
 
+    /** Asks Google Play for a newer version once per start; failures show nothing. */
+    private suspend fun checkForUpdate() {
+        val dismissed = updatePrefs.getInt(DISMISSED_UPDATE_KEY, -1).takeIf { it >= 0 }
+        val available =
+            AppUpdateChecker(AppUpdateManagerFactory.create(context)).availableVersionCode()
+        if (UpdateBanner.shouldShow(available, BuildConfig.VERSION_CODE, dismissed)) {
+            _availableUpdate.value = available
+        }
+    }
+
+    /** Hides the card until Play has a newer version than this one. */
+    fun dismissUpdate() {
+        val code = _availableUpdate.value ?: return
+        updatePrefs.edit().putInt(DISMISSED_UPDATE_KEY, code).apply()
+        _availableUpdate.value = null
+    }
+
     fun start() {
+        viewModelScope.launch(Dispatchers.IO) { checkForUpdate() }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val db = DatabaseService(context)
