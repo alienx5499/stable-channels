@@ -25,6 +25,10 @@ struct HomeView: View {
                         HomeNotificationBannerView()
                     }
 
+                    if let release = appState.availableUpdate {
+                        HomeUpdateAvailableView(release: release, onDismiss: { appState.dismissUpdate() })
+                    }
+
                     HomeBalanceSectionView(showBTC: $showBTC, flashScale: flashScale)
 
                     HomeSyncSpinnerView()

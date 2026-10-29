@@ -201,6 +201,10 @@
 		49E4D8A32FED84B7002AF338 /* BackupServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49E4D8A22FED84B7002AF338 /* BackupServiceProtocol.swift */; };
 		49E4D8A62FED9FF3002AF338 /* BackupSettingsSupportBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49E4D8A52FED9FF3002AF338 /* BackupSettingsSupportBanner.swift */; };
 		49E4D8A72FED9FF3002AF338 /* BackupSettingsICloudSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49E4D8A42FED9FF3002AF338 /* BackupSettingsICloudSection.swift */; };
+		49E5B07B3093630D008DFDD9 /* AppVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49E5B07A3093630D008DFDD9 /* AppVersion.swift */; };
+		49E5B07D3093631C008DFDD9 /* AppStoreUpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49E5B07C3093631C008DFDD9 /* AppStoreUpdateService.swift */; };
+		49E5B07F3093632E008DFDD9 /* HomeUpdateAvailableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49E5B07E3093632E008DFDD9 /* HomeUpdateAvailableView.swift */; };
+		49E5B08130936349008DFDD9 /* UpdateAvailableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49E5B08030936349008DFDD9 /* UpdateAvailableTests.swift */; };
 		49F0B0DE2FC0EF3A003A3B89 /* BackupSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F0B0D72FC0EF3A003A3B89 /* BackupSettingsView.swift */; };
 		49F0B0DF2FC0EF3A003A3B89 /* ChannelSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F0B0D82FC0EF3A003A3B89 /* ChannelSettingsView.swift */; };
 		49F0B0E02FC0EF3A003A3B89 /* NodeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F0B0DA2FC0EF3A003A3B89 /* NodeSettingsView.swift */; };
@@ -483,6 +487,10 @@
 		49E4D8A22FED84B7002AF338 /* BackupServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupServiceProtocol.swift; sourceTree = "<group>"; };
 		49E4D8A42FED9FF3002AF338 /* BackupSettingsICloudSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupSettingsICloudSection.swift; sourceTree = "<group>"; };
 		49E4D8A52FED9FF3002AF338 /* BackupSettingsSupportBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupSettingsSupportBanner.swift; sourceTree = "<group>"; };
+		49E5B07A3093630D008DFDD9 /* AppVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppVersion.swift; sourceTree = "<group>"; };
+		49E5B07C3093631C008DFDD9 /* AppStoreUpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreUpdateService.swift; sourceTree = "<group>"; };
+		49E5B07E3093632E008DFDD9 /* HomeUpdateAvailableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeUpdateAvailableView.swift; sourceTree = "<group>"; };
+		49E5B08030936349008DFDD9 /* UpdateAvailableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateAvailableTests.swift; sourceTree = "<group>"; };
 		49F0B0D52FC0EF3A003A3B89 /* AboutSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutSettingsView.swift; sourceTree = "<group>"; };
 		49F0B0D62FC0EF3A003A3B89 /* AppearanceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsView.swift; sourceTree = "<group>"; };
 		49F0B0D72FC0EF3A003A3B89 /* BackupSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupSettingsView.swift; sourceTree = "<group>"; };
@@ -590,6 +598,7 @@
 		2788439C4BA338889A92627F /* Domain */ = {
 			isa = PBXGroup;
 			children = (
+				49E5B07A3093630D008DFDD9 /* AppVersion.swift */,
 				ABD66CEF54B4AD55A14B6FE1 /* BackupModels.swift */,
 				49DDD00F3054000100B5A146 /* BookRepairPolicy.swift */,
 				49DDD0013054000100B5A146 /* ChannelAllocation.swift */,
@@ -913,6 +922,7 @@
 		7EE46C95963B6C9F86006346 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				49E5B07C3093631C008DFDD9 /* AppStoreUpdateService.swift */,
 				CC3C25041B1DA315BD7CD2E7 /* AuditService.swift */,
 				49E4D8A02FED848F002AF338 /* BackupError.swift */,
 				49E4D8A22FED84B7002AF338 /* BackupServiceProtocol.swift */,
@@ -1071,6 +1081,7 @@
 				49D27DDAAF62D43344798ADC /* HomeNotificationBannerView.swift */,
 				49D213CA84EA308A42C9AB71 /* HomeSavingsSectionView.swift */,
 				49DDD00B3054000100B5A146 /* HomeSyncStatusSectionView.swift */,
+				49E5B07E3093632E008DFDD9 /* HomeUpdateAvailableView.swift */,
 				95055FDBC76859CB74803660 /* HomeView.swift */,
 				49DDD0073054000100B5A146 /* TactileCardButtonStyle.swift */,
 				49BB000030E900144C6D1943 /* BalanceBar */,
@@ -1128,6 +1139,7 @@
 				49DDD01B3054000100B5A146 /* StabilityStatusAdaptersTests.swift */,
 				499DBE752FD2DADF003E89F9 /* StaggeredTaskLauncherTests.swift */,
 				490A1338304F147D005CDA39 /* TradeSyncParityTests.swift */,
+				49E5B08030936349008DFDD9 /* UpdateAvailableTests.swift */,
 				49A3297C300CC81D003EC383 /* WalletErrorMessagesTests.swift */,
 			);
 			path = StableChannelsTests;
@@ -1287,6 +1299,7 @@
 				4944458530540C3500B5A146 /* BinarySearchTests.swift in Sources */,
 				49A3297D300CC81D003EC383 /* WalletErrorMessagesTests.swift in Sources */,
 				49206DFC3073A90200217838 /* SlideToSendButtonTests.swift in Sources */,
+				49E5B08130936349008DFDD9 /* UpdateAvailableTests.swift in Sources */,
 				49206DFD3073A90200217838 /* SendFlowModelTests.swift in Sources */,
 				49206DFE3073A90200217838 /* CurveGeometryTests.swift in Sources */,
 				49206DFF3073A90200217838 /* SendAmountCalculatorTests.swift in Sources */,
@@ -1457,6 +1470,7 @@
 				49206E163073C27600217838 /* SendDestinationBadgeView.swift in Sources */,
 				49206E173073C27600217838 /* SendConfirmCards.swift in Sources */,
 				49206E183073C27600217838 /* SendLoadingView.swift in Sources */,
+				49E5B07D3093631C008DFDD9 /* AppStoreUpdateService.swift in Sources */,
 				49206E193073C27600217838 /* SendSuccessStepView.swift in Sources */,
 				49206E1A3073C27600217838 /* NetworkFeeSelectorView.swift in Sources */,
 				496A44432FCD4F75005AF12F /* QRInputToolbar.swift in Sources */,
@@ -1466,6 +1480,7 @@
 				49F0B0E42FC0EF3A003A3B89 /* StablePositionView.swift in Sources */,
 				49F0B0E52FC0EF3A003A3B89 /* AboutSettingsView.swift in Sources */,
 				49F0B0E62FC0EF3A003A3B89 /* AppearanceSettingsView.swift in Sources */,
+				49E5B07B3093630D008DFDD9 /* AppVersion.swift in Sources */,
 				49D7BFED30795EAA0089BF1C /* PaymentSettlementObserver.swift in Sources */,
 				49E3081130080F3C009B0014 /* TxidResolutionService.swift in Sources */,
 				CF42CAD5BA55B3F759B62E22 /* Trade.swift in Sources */,
@@ -1496,6 +1511,7 @@
 				1039784966D1ED4635CA96E6 /* LSPConfig.swift in Sources */,
 				A576FC086B9C883563FBE05A /* LSPSettingsView.swift in Sources */,
 				498244AA3022712F0086BDB6 /* BiometricProtocols.swift in Sources */,
+				49E5B07F3093632E008DFDD9 /* HomeUpdateAvailableView.swift in Sources */,
 				498244AB3022712F0086BDB6 /* BiometricToggleCoordinator.swift in Sources */,
 				7015C73934B1CDBCEF48751A /* LSPService.swift in Sources */,
 				495CB4023017918000560837 /* SPVHeaderChainService.swift in Sources */,

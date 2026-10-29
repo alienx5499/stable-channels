@@ -217,6 +217,9 @@ class AppState {
     }()
 
     var pendingSweepBalanceSats: UInt64 = 0
+    /// A newer App Store release the Home card offers, or nil.
+    var availableUpdate: StoreRelease?
+    private static let dismissedUpdateVersionKey = "dismissed_update_version"
 
     // Balance (derived) — initialized from cache for instant display
     var lightningBalanceSats: UInt64 = {
@@ -856,8 +859,30 @@ class AppState {
 
     // MARK: - Startup
 
+    /// Asks the App Store for a newer release once per start; failures show nothing.
+    func checkForUpdate() async {
+        let installed = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String).flatMap(AppVersion.init)
+        let dismissed = UserDefaults.standard.string(forKey: Self.dismissedUpdateVersionKey).flatMap(AppVersion.init)
+        let country = Locale.current.region?.identifier.lowercased() ?? "us"
+        guard let release = await AppStoreUpdateService().latestRelease(
+            bundleId: Bundle.main.bundleIdentifier ?? "com.stablechannels.app",
+            country: country
+        ) else { return }
+        if UpdatePolicy.shouldShow(installed: installed, store: release.version, dismissed: dismissed) {
+            availableUpdate = release
+        }
+    }
+
+    /// Hides the card until the store has a newer version than this one.
+    func dismissUpdate() {
+        guard let availableUpdate else { return }
+        UserDefaults.standard.set(availableUpdate.version.description, forKey: Self.dismissedUpdateVersionKey)
+        self.availableUpdate = nil
+    }
+
     func start() async {
         networkMonitor.start()
+        Task { await checkForUpdate() }
 
         // Guard the whole flow: performBackgroundStop must not release the
         // wallet-dir lock while this startup is still live (there is a window
